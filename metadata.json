@@ -1,0 +1,10 @@
+{
+  "name": "FoodWise AI",
+  "description": "Predict. Reduce. Redistribute. AI-powered smart food waste reduction and sustainable redistribution ecosystem for institutional kitchens.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

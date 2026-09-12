@@ -1,0 +1,561 @@
+{
+  "organizations": [
+    {
+      "id": "org-central-04",
+      "name": "Campus Central Kitchen #04",
+      "type": "institutional_kitchen",
+      "address": "Bandra Kurla Complex, Institutional Block C, Mumbai, Maharashtra 400051",
+      "latitude": 19.0657,
+      "longitude": 72.8687,
+      "contact_phone": "+91 22 6123 4567",
+      "fssai_license": "FSSAI-11519024000889"
+    }
+  ],
+  "users": [
+    {
+      "id": "usr-arjun-01",
+      "name": "Arjun Rao",
+      "email": "arjun.rao@foodwise.org",
+      "password_hash": "28b5ca0f23974323fa2b8c28f2b986aae37e309baa51b8e8f9c181e361c44f4a7a32c7330eefa25193481dbc7f10961691928a9bdf5216c32371c3fdfb1d849b",
+      "salt": "f00dw1s3_s4lt_2026",
+      "role": "Kitchen Manager",
+      "organization_id": "org-central-04",
+      "created_at": "2026-09-11T18:41:49.146Z"
+    },
+    {
+      "id": "usr-manager-alias",
+      "name": "Kitchen Manager",
+      "email": "manager@foodwise.org",
+      "password_hash": "28b5ca0f23974323fa2b8c28f2b986aae37e309baa51b8e8f9c181e361c44f4a7a32c7330eefa25193481dbc7f10961691928a9bdf5216c32371c3fdfb1d849b",
+      "salt": "f00dw1s3_s4lt_2026",
+      "role": "Kitchen Manager",
+      "organization_id": "org-central-04",
+      "created_at": "2026-09-11T18:41:49.146Z"
+    },
+    {
+      "id": "usr-priya-02",
+      "name": "Priya Sharma",
+      "email": "priya.sharma@foodwise.org",
+      "password_hash": "28b5ca0f23974323fa2b8c28f2b986aae37e309baa51b8e8f9c181e361c44f4a7a32c7330eefa25193481dbc7f10961691928a9bdf5216c32371c3fdfb1d849b",
+      "salt": "f00dw1s3_s4lt_2026",
+      "role": "Kitchen Staff",
+      "organization_id": "org-central-04",
+      "created_at": "2026-09-11T18:41:49.146Z"
+    },
+    {
+      "id": "usr-staff-alias",
+      "name": "Kitchen Staff",
+      "email": "staff@foodwise.org",
+      "password_hash": "28b5ca0f23974323fa2b8c28f2b986aae37e309baa51b8e8f9c181e361c44f4a7a32c7330eefa25193481dbc7f10961691928a9bdf5216c32371c3fdfb1d849b",
+      "salt": "f00dw1s3_s4lt_2026",
+      "role": "Kitchen Staff",
+      "organization_id": "org-central-04",
+      "created_at": "2026-09-11T18:41:49.146Z"
+    },
+    {
+      "id": "usr-sunil-03",
+      "name": "Sunil Mehta",
+      "email": "sunil@ashashelter.org",
+      "password_hash": "640981f2a4a0f3419947a7897aaa61ace88c29158fe6da1ae97634c59ec3db874d66d9038e746e427a06b30b7f7a8e0f98a103dddaf118a00ac57e066b4d7baf",
+      "salt": "f00dw1s3_s4lt_2026",
+      "role": "Receiver",
+      "organization_id": "org-central-04",
+      "created_at": "2026-09-11T18:41:49.146Z"
+    },
+    {
+      "id": "usr-receiver-alias",
+      "name": "NGO Receiver Lead",
+      "email": "receiver@foodwise.org",
+      "password_hash": "640981f2a4a0f3419947a7897aaa61ace88c29158fe6da1ae97634c59ec3db874d66d9038e746e427a06b30b7f7a8e0f98a103dddaf118a00ac57e066b4d7baf",
+      "salt": "f00dw1s3_s4lt_2026",
+      "role": "Receiver",
+      "organization_id": "org-central-04",
+      "created_at": "2026-09-11T18:41:49.146Z"
+    },
+    {
+      "id": "usr-admin-04",
+      "name": "Chief Admin",
+      "email": "admin@foodwise.org",
+      "password_hash": "7f0f11911bc8f6eef06863a9f74f2fe50dd5c4f5afcf6fcc95738ad43d1a5bd5ea28a2de53064a63d22f26b67eea4a9e4af0594e9af635b3159c9286d0229941",
+      "salt": "f00dw1s3_s4lt_2026",
+      "role": "Admin",
+      "organization_id": "org-central-04",
+      "created_at": "2026-09-11T18:41:49.146Z"
+    },
+    {
+      "id": "usr-1789151651733-7tuu",
+      "name": "Test Staff Member",
+      "email": "testuser_1789151651719@example.org",
+      "password_hash": "22d9d9a99a656fb1c79686ee1a4697ec7a3a7e235f8e3adbd0f58324830ffca4f794e3cb20798468559dee71331e01809bc27175562734e83c15eebbd60f322c",
+      "salt": "2140ebeeff02fa06c47a670940f24306",
+      "role": "Kitchen Staff",
+      "organization_id": "org-central-04",
+      "created_at": "2026-09-11T18:34:11.733Z"
+    }
+  ],
+  "food_items": [
+    {
+      "id": "fi-rice-01",
+      "name": "Steamed Basmati Rice",
+      "category": "grain",
+      "default_unit": "kg",
+      "shelf_life_hours": 4
+    },
+    {
+      "id": "fi-dal-02",
+      "name": "Yellow Dal Tadka",
+      "category": "lentil_curry",
+      "default_unit": "kg",
+      "shelf_life_hours": 4
+    },
+    {
+      "id": "fi-subzi-03",
+      "name": "Mixed Subzi Greens",
+      "category": "vegetable",
+      "default_unit": "kg",
+      "shelf_life_hours": 4
+    },
+    {
+      "id": "fi-roti-04",
+      "name": "Whole Wheat Chapati & Roti",
+      "category": "bakery",
+      "default_unit": "kg",
+      "shelf_life_hours": 6
+    },
+    {
+      "id": "fi-biryani-05",
+      "name": "Vegetable Biryani & Raita",
+      "category": "grain",
+      "default_unit": "kg",
+      "shelf_life_hours": 4
+    },
+    {
+      "id": "fi-paneer-06",
+      "name": "Paneer Makhani",
+      "category": "protein",
+      "default_unit": "kg",
+      "shelf_life_hours": 4
+    }
+  ],
+  "menus": [
+    {
+      "id": "menu-today",
+      "organization_id": "org-central-04",
+      "name": "Standard Lunch Service",
+      "date": "2026-09-11",
+      "event_type": "Regular Service"
+    }
+  ],
+  "attendance_records": [
+    {
+      "id": "att-1",
+      "organization_id": "org-central-04",
+      "date": "2026-09-05",
+      "shift": "Lunch",
+      "expected_people": 480,
+      "actual_people": 472,
+      "is_demo": true
+    },
+    {
+      "id": "att-2",
+      "organization_id": "org-central-04",
+      "date": "2026-09-06",
+      "shift": "Lunch",
+      "expected_people": 490,
+      "actual_people": 485,
+      "is_demo": true
+    },
+    {
+      "id": "att-3",
+      "organization_id": "org-central-04",
+      "date": "2026-09-07",
+      "shift": "Lunch",
+      "expected_people": 450,
+      "actual_people": 442,
+      "is_demo": true
+    },
+    {
+      "id": "att-4",
+      "organization_id": "org-central-04",
+      "date": "2026-09-08",
+      "shift": "Lunch",
+      "expected_people": 510,
+      "actual_people": 504,
+      "is_demo": true
+    },
+    {
+      "id": "att-5",
+      "organization_id": "org-central-04",
+      "date": "2026-09-09",
+      "shift": "Lunch",
+      "expected_people": 500,
+      "actual_people": 492,
+      "is_demo": true
+    },
+    {
+      "id": "att-6",
+      "organization_id": "org-central-04",
+      "date": "2026-09-10",
+      "shift": "Lunch",
+      "expected_people": 490,
+      "actual_people": 480,
+      "is_demo": true
+    },
+    {
+      "id": "att-7",
+      "organization_id": "org-central-04",
+      "date": "2026-09-11",
+      "shift": "Lunch",
+      "expected_people": 430,
+      "actual_people": 424,
+      "is_demo": true
+    }
+  ],
+  "production_records": [
+    {
+      "id": "prod-1",
+      "organization_id": "org-central-04",
+      "food_item_id": "fi-rice-01",
+      "quantity_produced": 102.5,
+      "consumed_kg": 92,
+      "waste_kg": 10.5,
+      "unit": "kg",
+      "date": "2026-09-05",
+      "shift": "Lunch",
+      "is_demo": true
+    },
+    {
+      "id": "prod-2",
+      "organization_id": "org-central-04",
+      "food_item_id": "fi-rice-01",
+      "quantity_produced": 104,
+      "consumed_kg": 94.2,
+      "waste_kg": 9.8,
+      "unit": "kg",
+      "date": "2026-09-06",
+      "shift": "Lunch",
+      "is_demo": true
+    },
+    {
+      "id": "prod-3",
+      "organization_id": "org-central-04",
+      "food_item_id": "fi-rice-01",
+      "quantity_produced": 96,
+      "consumed_kg": 86.8,
+      "waste_kg": 9.2,
+      "unit": "kg",
+      "date": "2026-09-07",
+      "shift": "Lunch",
+      "is_demo": true
+    },
+    {
+      "id": "prod-4",
+      "organization_id": "org-central-04",
+      "food_item_id": "fi-rice-01",
+      "quantity_produced": 108,
+      "consumed_kg": 98.4,
+      "waste_kg": 9.6,
+      "unit": "kg",
+      "date": "2026-09-08",
+      "shift": "Lunch",
+      "is_demo": true
+    },
+    {
+      "id": "prod-5",
+      "organization_id": "org-central-04",
+      "food_item_id": "fi-rice-01",
+      "quantity_produced": 105,
+      "consumed_kg": 96.2,
+      "waste_kg": 8.8,
+      "unit": "kg",
+      "date": "2026-09-09",
+      "shift": "Lunch",
+      "is_demo": true
+    },
+    {
+      "id": "prod-6",
+      "organization_id": "org-central-04",
+      "food_item_id": "fi-rice-01",
+      "quantity_produced": 103,
+      "consumed_kg": 92.8,
+      "waste_kg": 10.2,
+      "unit": "kg",
+      "date": "2026-09-10",
+      "shift": "Lunch",
+      "is_demo": true
+    },
+    {
+      "id": "prod-7",
+      "organization_id": "org-central-04",
+      "food_item_id": "fi-rice-01",
+      "quantity_produced": 98.4,
+      "consumed_kg": 90,
+      "waste_kg": 8.4,
+      "unit": "kg",
+      "date": "2026-09-11",
+      "shift": "Lunch",
+      "is_demo": true
+    }
+  ],
+  "consumption_records": [],
+  "waste_records": [
+    {
+      "id": "wr-1789152121292-a48j",
+      "organization_id": "org-central-04",
+      "food_name": "Basmati Rice Post-Service Tray",
+      "user_confirmed_quantity": 5.8,
+      "unit": "kg",
+      "waste_level": "medium",
+      "image_url": null,
+      "ai_analysis_json": null,
+      "notes": "End of service hot tray residue",
+      "service_shift": "Lunch",
+      "station_name": "Station #2 AI Scale",
+      "is_demo": false,
+      "created_at": "2026-09-11T18:42:01.292Z"
+    },
+    {
+      "id": "wr-1789152052938-ayqi",
+      "organization_id": "org-central-04",
+      "food_name": "Basmati Rice Post-Service Tray",
+      "user_confirmed_quantity": 5.8,
+      "unit": "kg",
+      "waste_level": "medium",
+      "image_url": null,
+      "ai_analysis_json": null,
+      "notes": "End of service hot tray residue",
+      "service_shift": "Lunch",
+      "station_name": "Station #2 AI Scale",
+      "is_demo": false,
+      "created_at": "2026-09-11T18:40:52.938Z"
+    },
+    {
+      "id": "wr-1789149538576-8rgt",
+      "organization_id": "org-central-04",
+      "food_name": "Steamed Basmati Rice Leftover",
+      "user_confirmed_quantity": 6.5,
+      "unit": "kg",
+      "waste_level": "medium",
+      "image_url": null,
+      "ai_analysis_json": null,
+      "notes": "End of service excess pan",
+      "service_shift": "Lunch",
+      "station_name": "Line #02 - Main Servery",
+      "is_demo": false,
+      "created_at": "2026-09-11T17:58:58.576Z"
+    },
+    {
+      "id": "wr-seed-01",
+      "food_name": "Steamed Basmati Rice",
+      "quantity": 3.2,
+      "unit": "kg",
+      "waste_level": "high",
+      "service_shift": "Lunch",
+      "station_name": "Station #2 AI Scale",
+      "notes": "End of lunch steam table residue. High grain moisture preserved.",
+      "is_demo": true,
+      "created_at": "2026-09-11T16:28:39.688Z"
+    },
+    {
+      "id": "wr-seed-02",
+      "food_name": "Mixed Subzi Greens",
+      "quantity": 2,
+      "unit": "kg",
+      "waste_level": "medium",
+      "service_shift": "Lunch",
+      "station_name": "Main Prep Line 4",
+      "notes": "Tray trim and line clearance.",
+      "is_demo": true,
+      "created_at": "2026-09-11T15:58:39.689Z"
+    },
+    {
+      "id": "wr-seed-03",
+      "food_name": "Yellow Dal Tadka",
+      "quantity": 1.4,
+      "unit": "kg",
+      "waste_level": "medium",
+      "service_shift": "Lunch",
+      "station_name": "Station #2 AI Scale",
+      "notes": "Bain-marie bottom volume.",
+      "is_demo": true,
+      "created_at": "2026-09-11T15:28:39.689Z"
+    },
+    {
+      "id": "wr-seed-04",
+      "food_name": "Whole Wheat Chapati & Roti",
+      "quantity": 1.8,
+      "unit": "kg",
+      "waste_level": "low",
+      "service_shift": "Lunch",
+      "station_name": "Bakery Station #3",
+      "notes": "Dry bread warming container holding time exceeded.",
+      "is_demo": true,
+      "created_at": "2026-09-11T14:58:39.689Z"
+    }
+  ],
+  "demand_predictions": [],
+  "surplus_listings": [
+    {
+      "id": "surplus-1789152121329",
+      "organization_id": "org-central-04",
+      "food_name": "Hot Fresh Basmati Rice & Dal",
+      "quantity": 12,
+      "unit": "kg",
+      "prep_timestamp": "2026-09-11T18:42:01.329Z",
+      "available_until": "2026-09-11T22:42:01.325Z",
+      "pickup_location": "Central Kitchen Dispatch Dock #2",
+      "temperature_celsius": 65.5,
+      "packaging_type": "Hygienic Steel Sealed (GN 1/1)",
+      "dietary_type": "Vegetarian",
+      "status": "reserved",
+      "notes": "Freshly prepared surplus, maintained at >60°C",
+      "is_demo": false,
+      "created_at": "2026-09-11T18:42:01.329Z"
+    },
+    {
+      "id": "surplus-1789152052975",
+      "organization_id": "org-central-04",
+      "food_name": "Hot Fresh Basmati Rice & Dal",
+      "quantity": 12,
+      "unit": "kg",
+      "prep_timestamp": "2026-09-11T18:40:52.975Z",
+      "available_until": "2026-09-11T22:40:52.968Z",
+      "pickup_location": "Central Kitchen Dispatch Dock #2",
+      "temperature_celsius": 65.5,
+      "packaging_type": "Hygienic Steel Sealed (GN 1/1)",
+      "dietary_type": "Vegetarian",
+      "status": "available",
+      "notes": "Freshly prepared surplus, maintained at >60°C",
+      "is_demo": false,
+      "created_at": "2026-09-11T18:40:52.975Z"
+    },
+    {
+      "id": "surplus-01",
+      "food_item_id": "fi-biryani-05",
+      "food_name": "Fresh Vegetable Biryani & Raita",
+      "quantity": 12,
+      "unit": "kg",
+      "prep_timestamp": "2026-09-11T16:43:39.689Z",
+      "available_until": "2026-09-11T19:13:39.689Z",
+      "pickup_location": "Central Kitchen - Bay 2 Loading Dock",
+      "temperature_celsius": 68,
+      "packaging_type": "Hygienic Steel Sealed (GN 1/1)",
+      "dietary_type": "100% Vegetarian",
+      "status": "matched",
+      "notes": "Cooked fresh at 12:15 PM. Hot holding temperature verified compliant.",
+      "is_demo": true
+    },
+    {
+      "id": "surplus-02",
+      "food_item_id": "fi-roti-04",
+      "food_name": "Whole Wheat Chapati & Steamed Rice",
+      "quantity": 6.5,
+      "unit": "kg",
+      "prep_timestamp": "2026-09-11T17:28:39.689Z",
+      "available_until": "2026-09-11T21:28:39.689Z",
+      "pickup_location": "Bakery & Grain Station #3",
+      "temperature_celsius": 54,
+      "packaging_type": "Insulated Dry Pack Foil Wrapped",
+      "dietary_type": "Vegetarian",
+      "status": "available",
+      "notes": "Pantry clean batch. Ready for immediate pickup.",
+      "is_demo": true
+    }
+  ],
+  "receivers": [
+    {
+      "id": "rec-asha-01",
+      "organization_id": "org-central-04",
+      "name": "Asha Community Kitchen & Children's Shelter",
+      "type": "NGO Shelter",
+      "capacity": 45,
+      "current_occupancy_kg": 17,
+      "latitude": 19.0435,
+      "longitude": 72.8422,
+      "address": "Mahim West, Near Railway Colony, Mumbai 400016",
+      "contact_person": "Sunil Mehta (Center Head)",
+      "contact_phone": "+91 98201 44552",
+      "dietary_preferences": "Strict Vegetarian • No Peanuts",
+      "has_cold_storage": true,
+      "verified": true,
+      "rating": 4.9,
+      "total_logs": 312,
+      "is_demo": true
+    },
+    {
+      "id": "rec-robin-02",
+      "organization_id": "org-central-04",
+      "name": "Robin Hood Army - South Ward Chapter",
+      "type": "Volunteer Food Rescue",
+      "capacity": 60,
+      "current_occupancy_kg": 24,
+      "latitude": 19.0178,
+      "longitude": 72.83,
+      "address": "Dadar Community Center, Mumbai 400028",
+      "contact_person": "Kavita Iyer (Dispatch Lead)",
+      "contact_phone": "+91 98192 33410",
+      "dietary_preferences": "All Edible Cooked Food",
+      "has_cold_storage": false,
+      "verified": true,
+      "rating": 4.8,
+      "total_logs": 489,
+      "is_demo": true
+    },
+    {
+      "id": "rec-pratham-03",
+      "organization_id": "org-central-04",
+      "name": "Pratham Meal Care & Night Shelter",
+      "type": "Night Shelter",
+      "capacity": 35,
+      "current_occupancy_kg": 12,
+      "latitude": 19.0324,
+      "longitude": 72.8592,
+      "address": "Sion East, Near Circle Garden, Mumbai 400022",
+      "contact_person": "Dr. Rajesh Patel",
+      "contact_phone": "+91 98330 11982",
+      "dietary_preferences": "Lentils, Rice, Breads",
+      "has_cold_storage": true,
+      "verified": true,
+      "rating": 4.9,
+      "total_logs": 204,
+      "is_demo": true
+    }
+  ],
+  "redistribution_matches": [],
+  "impact_records": [],
+  "handovers_log": [
+    {
+      "id": "lot-8921-a",
+      "item_composition": "Dal Makhani & Jeera Rice",
+      "notes": "Cooked 11:30 AM • High Protein",
+      "weight_kg": 14.2,
+      "temperature_c": 66,
+      "recipient_ngo": "Pratham Meal Shelter - Dadar",
+      "status": "Delivered (12:45 PM)",
+      "timestamp": "12:45 PM",
+      "is_demo": true
+    },
+    {
+      "id": "lot-8919-c",
+      "item_composition": "Assorted Idli & Sambhar Batches",
+      "notes": "Breakfast Surplus • Steamed",
+      "weight_kg": 9.8,
+      "temperature_c": 62,
+      "recipient_ngo": "Seva Sadan Youth Home",
+      "status": "Delivered (10:15 AM)",
+      "timestamp": "10:15 AM",
+      "is_demo": true
+    },
+    {
+      "id": "lot-8918-b",
+      "item_composition": "Whole Wheat Sandwiches (Cold Pack)",
+      "notes": "Cafeteria Grab-and-go sealed",
+      "weight_kg": 5.5,
+      "temperature_c": 4.2,
+      "recipient_ngo": "Robin Hood Army - South Ward",
+      "status": "Delivered (9:40 AM)",
+      "timestamp": "09:40 AM",
+      "is_demo": true
+    }
+  ]
+}
