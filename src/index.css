@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #f4f7f3;
+    --text-primary: #15231b;
+    --text-secondary: #66736b;
+    --border-color: #dfe8e0;
+    --brand-primary: #1f5c45;
+    --brand-accent: #3b9b73;
+  }
+
+  * {
+    border-color: var(--border-color);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 86% -10%, rgba(82, 183, 136, 0.13), transparent 32rem),
+      var(--bg-main);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  button, input, select, textarea {
+    font: inherit;
+  }
+
+  button {
+    transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease, border-color 160ms ease;
+  }
+
+  button:not(:disabled):active {
+    transform: translateY(1px);
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: #79b697 !important;
+    box-shadow: 0 0 0 3px rgba(82, 183, 136, 0.14);
+  }
+
+  ::selection {
+    background: #1f5c45;
+    color: #fff;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #D5D5D0;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #BCBCB5;
+  }
+}
+
+@layer components {
+  .fw-panel {
+    border: 1px solid rgba(205, 220, 208, 0.9);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 10px 30px rgba(31, 92, 69, 0.06);
+    backdrop-filter: blur(12px);
+  }
+
+  .fw-panel:hover {
+    border-color: rgba(121, 182, 151, 0.7);
+  }
+}
+
+/* Operational Table utilities */
+.table-dense th {
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #E5E5E2;
+}
+
+.table-dense td {
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #171717;
+  border-bottom: 1px solid #EAEAE7;
+}
+
+.table-dense tr:hover td {
+  background-color: #FAFAFA;
+}
