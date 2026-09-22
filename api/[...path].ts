@@ -1,6 +1,6 @@
 import express from 'express';
-import { initDatabase } from '../server/db/index.ts';
-import apiRouter from '../server/routes/api.ts';
+import { initDatabase } from '../server/db/index';
+import apiRouter from '../server/routes/api';
 
 const app = express();
 const databaseReady = initDatabase();
