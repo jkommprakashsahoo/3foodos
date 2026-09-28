@@ -25,6 +25,7 @@ import {
   getMenus,
   getProductionRecords,
   getReceivers,
+  getReceiverById,
   getRedistributionMatches,
   getSurplusListingById,
   getSurplusListings,
@@ -222,6 +223,15 @@ router.post('/waste-records', async (req: AuthenticatedRequest, res) => {
 // ----------------------------------------------------------------------
 // MENUS & PRODUCTION (PHASE 2 & 25)
 // ----------------------------------------------------------------------
+router.get('/food-items', async (_req, res) => {
+  try {
+    const foodItems = await getFoodItems();
+    res.json({ success: true, foodItems });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/menus', async (req: AuthenticatedRequest, res) => {
   try {
     const orgId = req.user?.organization_id;
@@ -439,6 +449,7 @@ router.post('/surplus', async (req: AuthenticatedRequest, res) => {
 router.patch('/surplus/:id', async (req: AuthenticatedRequest, res) => {
   try {
     const { id } = req.params;
+    const { temperature_celsius, weight_kg, recipient_ngo, notes } = req.body;
     let { status } = req.body;
 
     if (status === 'claimed') {
@@ -448,22 +459,30 @@ router.patch('/surplus/:id', async (req: AuthenticatedRequest, res) => {
     if (!['available', 'reserved', 'matched', 'dispatched', 'delivered', 'expired', 'cancelled'].includes(status)) {
       return res.status(400).json({ success: false, error: 'Invalid status transition.' });
     }
+    const handoverTemperature = Number(temperature_celsius);
+    const handoverWeight = Number(weight_kg);
+    if (status === 'delivered' && (
+      !Number.isFinite(handoverTemperature) || handoverTemperature < -30 || handoverTemperature > 100 ||
+      !Number.isFinite(handoverWeight) || handoverWeight <= 0 ||
+      typeof recipient_ngo !== 'string' || !recipient_ngo.trim()
+    )) {
+      return res.status(422).json({ success: false, error: 'Measured handover temperature, received weight, and receiver name are required to complete this delivery.' });
+    }
 
     const updated = await updateSurplusStatus(id, status);
     if (!updated) {
       return res.status(404).json({ success: false, error: 'Surplus listing not found.' });
     }
-
-    // If delivered, automatically append to handovers log
     if (status === 'delivered') {
+      const timestamp = new Date().toISOString();
       await createHandoverLog({
         item_composition: updated.food_name,
-        notes: updated.notes || 'Redistribution batch completed',
-        weight_kg: Number(updated.quantity),
-        temperature_c: updated.temperature_celsius || 65.0,
-        recipient_ngo: updated.pickup_location || 'Verified Receiver Partner',
-        status: `Delivered (${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        notes: typeof notes === 'string' ? notes : '',
+        weight_kg: handoverWeight,
+        temperature_c: handoverTemperature,
+        recipient_ngo: recipient_ngo.trim(),
+        status: 'Delivered',
+        timestamp,
         is_demo: Boolean(updated.is_demo)
       });
     }
@@ -477,6 +496,19 @@ router.patch('/surplus/:id', async (req: AuthenticatedRequest, res) => {
 // ----------------------------------------------------------------------
 // RECEIVERS AND MATCHING LOGISTICS (PHASE 11, 12, 13, 14)
 // ----------------------------------------------------------------------
+router.get('/redistribution', async (req, res) => {
+  try {
+    const includeDemo = req.query.includeDemo !== 'false';
+    const [matches, receivers] = await Promise.all([
+      getRedistributionMatches(includeDemo),
+      getReceivers(includeDemo)
+    ]);
+    res.json({ success: true, matches, receivers });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/receivers', async (req, res) => {
   try {
     const includeDemo = req.query.includeDemo !== 'false';
@@ -489,19 +521,25 @@ router.get('/receivers', async (req, res) => {
 
 router.post('/match-surplus', async (req, res) => {
   try {
-    const { surplusId, kitchenLat, kitchenLng } = req.body;
-    const surplusList = await getSurplusListings(true);
+    const { surplusId, kitchenLat, kitchenLng, includeDemo = true } = req.body;
+    const latitude = Number(kitchenLat);
+    const longitude = Number(kitchenLng);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return res.status(422).json({
+        success: false,
+        error: 'Verified kitchen coordinates are required to calculate receiver distances.'
+      });
+    }
+    const surplusList = await getSurplusListings(Boolean(includeDemo));
     const surplusItem = surplusList.find(s => s.id === surplusId);
 
     if (!surplusItem) {
       return res.status(404).json({ success: false, error: 'Surplus item not found.' });
     }
 
-    const receivers = await getReceivers(true);
-    const kitchenCoords = {
-      latitude: Number(kitchenLat) || 19.0657,
-      longitude: Number(kitchenLng) || 72.8687
-    };
+    const receivers = await getReceivers(Boolean(includeDemo));
+    const kitchenCoords = { latitude, longitude };
 
     const matches = rankReceiversForSurplus(surplusItem, kitchenCoords, receivers);
 
@@ -510,6 +548,111 @@ router.post('/match-surplus', async (req, res) => {
       surplusItem,
       matches
     });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/redistribution/assign', async (req, res) => {
+  try {
+    const { surplusId, receiverId, kitchenLat, kitchenLng, includeDemo = false } = req.body;
+    const latitude = Number(kitchenLat);
+    const longitude = Number(kitchenLng);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+        !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return res.status(422).json({ success: false, error: 'Verified kitchen coordinates are required to assign a receiver.' });
+    }
+
+    const surplus = await getSurplusListingById(String(surplusId || ''));
+    const receiver = await getReceiverById(String(receiverId || ''));
+    if (!surplus || !receiver) return res.status(404).json({ success: false, error: 'Surplus listing or receiver was not found.' });
+    if (!includeDemo && (surplus.is_demo || receiver.is_demo)) {
+      return res.status(403).json({ success: false, error: 'Enable demo mode before assigning demo listings or receivers.' });
+    }
+    if (surplus.status !== 'available') return res.status(409).json({ success: false, error: 'This surplus listing is no longer available.' });
+
+    const recommendation = rankReceiversForSurplus(
+      surplus,
+      { latitude, longitude },
+      [receiver]
+    )[0];
+    if (!recommendation || !recommendation.isCapacitySufficient || !recommendation.isDietaryCompatible || !receiver.verified) {
+      return res.status(422).json({ success: false, error: 'This receiver does not meet the current capacity, dietary, or verification requirements.' });
+    }
+
+    const match = await createRedistributionMatch({
+      surplus_listing_id: surplus.id,
+      receiver_id: receiver.id,
+      match_score: recommendation.matchScore,
+      distance_km: recommendation.distanceKm,
+      estimated_travel_time_mins: recommendation.estimatedTransitTimeMins,
+      status: 'matched',
+      is_demo: Boolean(surplus.is_demo)
+    });
+    await updateSurplusStatus(surplus.id, 'matched');
+    res.status(201).json({ success: true, match, recommendation });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.patch('/redistribution/:id/status', async (req, res) => {
+  try {
+    const { status, temperatureCelsius, handoverWeightKg, handoverNotes } = req.body;
+    if (!['accepted', 'dispatched', 'delivered', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Invalid redistribution status transition.' });
+    }
+    const matches = await getRedistributionMatches(true);
+    const match = matches.find(item => item.id === req.params.id);
+    if (!match) return res.status(404).json({ success: false, error: 'Redistribution assignment not found.' });
+    const allowedTransitions: Record<string, string[]> = {
+      matched: ['accepted', 'dispatched', 'rejected'],
+      accepted: ['dispatched', 'rejected'],
+      dispatched: ['delivered']
+    };
+    if (!allowedTransitions[match.status]?.includes(status)) {
+      return res.status(409).json({ success: false, error: `Cannot move this transfer from ${match.status} to ${status}.` });
+    }
+    const measuredTemperature = Number(temperatureCelsius);
+    if (status === 'dispatched' && (!Number.isFinite(measuredTemperature) || measuredTemperature < -30 || measuredTemperature > 100)) {
+      return res.status(422).json({ success: false, error: 'Enter the measured food temperature at pickup before confirming handover.' });
+    }
+    if (status === 'delivered' && match.transit_temperature_celsius === undefined) {
+      return res.status(409).json({ success: false, error: 'Pickup temperature is missing; the transfer cannot be completed without a measured handover temperature.' });
+    }
+    const measuredHandoverWeight = Number(handoverWeightKg);
+    const measuredHandoverTemperature = Number(temperatureCelsius);
+    if (status === 'delivered' && (
+      !Number.isFinite(measuredHandoverWeight) || measuredHandoverWeight <= 0 ||
+      !Number.isFinite(measuredHandoverTemperature) || measuredHandoverTemperature < -30 || measuredHandoverTemperature > 100
+    )) {
+      return res.status(422).json({ success: false, error: 'Measured received weight and receiver temperature are required to complete this transfer.' });
+    }
+    const updatedMatch = await updateRedistributionMatch(
+      match.id,
+      status,
+      status === 'dispatched' ? measuredTemperature : status === 'delivered' ? measuredHandoverTemperature : undefined
+    );
+    const surplus = await getSurplusListingById(match.surplus_listing_id);
+    const receiver = await getReceiverById(match.receiver_id);
+    if (surplus) {
+      const listingStatus = status === 'rejected' ? 'available' : status === 'accepted' ? 'matched' : status;
+      await updateSurplusStatus(surplus.id, listingStatus);
+      if (status === 'delivered' && updatedMatch && receiver && updatedMatch.transit_temperature_celsius !== undefined) {
+        const timestamp = new Date().toISOString();
+        await createHandoverLog({
+          item_composition: surplus.food_name,
+          notes: typeof handoverNotes === 'string' ? handoverNotes : '',
+          weight_kg: measuredHandoverWeight,
+          temperature_c: measuredHandoverTemperature,
+          recipient_ngo: receiver.name,
+          status: 'Delivered',
+          timestamp,
+          is_demo: Boolean(surplus.is_demo)
+        });
+      }
+    }
+    res.json({ success: true, match: updatedMatch });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

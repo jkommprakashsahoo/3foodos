@@ -822,10 +822,17 @@ export async function createRedistributionMatch(match: Omit<DbRedistributionMatc
   return newMatch;
 }
 
-export async function updateRedistributionMatch(id: string, status: DbRedistributionMatch['status']): Promise<DbRedistributionMatch | null> {
+export async function updateRedistributionMatch(
+  id: string,
+  status: DbRedistributionMatch['status'],
+  transitTemperatureCelsius?: number
+): Promise<DbRedistributionMatch | null> {
   const match = localStore.redistribution_matches.find(m => m.id === id);
   if (match) {
     match.status = status;
+    if (transitTemperatureCelsius !== undefined) {
+      match.transit_temperature_celsius = transitTemperatureCelsius;
+    }
     if (status === 'delivered') {
       match.delivery_timestamp = new Date().toISOString();
     }

@@ -1,374 +1,191 @@
-// FoodWise AI: Operational Analytics & Sustainability Reporting
-// Serious enterprise reporting: Restrained visual language, dense tables, minimal charts
-
 import React, { useEffect, useState } from 'react';
 import {
-  ResponsiveContainer,
-  BarChart,
   Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
+  BarChart,
   CartesianGrid,
-  Legend
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
 } from 'recharts';
-import {
-  Download,
-  Calendar,
-  Building2,
-  Info,
-  CheckCircle2
-} from 'lucide-react';
-import { SustainabilityMetrics } from '../types.ts';
+import { Info, RefreshCw } from 'lucide-react';
+import { getAnalytics } from '../services/analytics.ts';
+import type { SustainabilityMetrics } from '../types.ts';
 import { MetricBlock } from './ui/MetricBlock.tsx';
 import { Badge } from './ui/Badge.tsx';
 
-export const AnalyticsView: React.FC = () => {
-  const [metrics, setMetrics] = useState<SustainabilityMetrics | null>(null);
-  const [timeframe, setTimeframe] = useState<'today' | 'this_week' | 'this_month' | 'all_time'>('all_time');
-  const [kitchen, setKitchen] = useState<string>('Main Campus Kitchen');
-  const [category, setCategory] = useState<string>('all');
-  const [meal, setMeal] = useState<string>('all');
-  const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false);
-  const [showMethodology, setShowMethodology] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+interface AnalyticsViewProps {
+  demoMode: boolean;
+}
 
-  const fetchAnalytics = async () => {
+type Timeframe = 'today' | 'this_week' | 'this_month' | 'all_time';
+
+export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ demoMode }) => {
+  const [metrics, setMetrics] = useState<SustainabilityMetrics | null>(null);
+  const [timeframe, setTimeframe] = useState<Timeframe>('all_time');
+  const [showMethodology, setShowMethodology] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAnalytics = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`/api/analytics?verifiedOnly=${verifiedOnly}&timeframe=${timeframe}`);
-      const json = await res.json();
-      if (json.success) {
-        setMetrics(json.metrics);
-      }
-    } catch (err) {
-      console.error('[Analytics Error]', err);
+      const response = await getAnalytics({ timeframe, verifiedOnly: !demoMode });
+      setMetrics(response.metrics);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Analytics could not be loaded.');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [verifiedOnly, timeframe]);
+    void loadAnalytics();
+  }, [timeframe, demoMode]);
 
-  // Production vs Consumption data
-  const productionVsConsumption = [
-    { day: 'Mon', plannedKg: 165, consumedKg: 154, wasteKg: 11 },
-    { day: 'Tue', plannedKg: 172, consumedKg: 162, wasteKg: 10 },
-    { day: 'Wed', plannedKg: 180, consumedKg: 168, wasteKg: 12 },
-    { day: 'Thu', plannedKg: 170, consumedKg: 161, wasteKg: 9 },
-    { day: 'Fri', plannedKg: 190, consumedKg: 176, wasteKg: 14 }
-  ];
-
-  // Category breakdown
-  const categoryBreakdown = [
-    { name: 'Grains (Rice / Roti)', percentage: 42, kg: 38.4 },
-    { name: 'Vegetables & Greens', percentage: 26, kg: 23.8 },
-    { name: 'Lentils & Dal', percentage: 18, kg: 16.5 },
-    { name: 'Dairy & Prepared Sides', percentage: 14, kg: 12.8 }
-  ];
+  const hasData = Boolean(metrics && metrics.totalLogsCount > 0);
+  const value = (number?: number, unit = '') =>
+    isLoading ? '…' : number === undefined ? '—' : `${number.toLocaleString(undefined, { maximumFractionDigits: 1 })}${unit}`;
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#E5E5E2]">
+    <div className="max-w-[1400px] space-y-5">
+      <header className="flex flex-col justify-between gap-3 border-b border-[#e2e6e1] pb-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-xl lg:text-2xl font-semibold text-[#171717] tracking-tight">
-            Analytics
-          </h1>
-          <p className="text-xs text-[#666666] mt-0.5">
-            Operational waste audit, consumption reconciliation, and verified environmental cost impact
-          </p>
+          <p className="text-xs font-medium text-[#68736a]">Operational reporting</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Analytics & impact</h1>
+          <p className="mt-1 text-sm text-[#68736a]">Metrics are calculated from the selected waste and redistribution records.</p>
         </div>
+        <Badge variant={demoMode ? 'demo' : 'verified'}>{demoMode ? 'Demo data included' : 'Verified records only'}</Badge>
+      </header>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowMethodology(!showMethodology)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[#E5E5E2] bg-white text-[#171717] hover:bg-[#F2F2EF] transition-colors"
-          >
-            <Info className="w-3.5 h-3.5 text-[#666666]" />
-            <span>Calculation factors</span>
-          </button>
-        </div>
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-[#e2e6e1] bg-white p-3">
+        <label className="min-w-44 text-xs font-medium text-[#59645c]">
+          Reporting period
+          <select value={timeframe} onChange={event => setTimeframe(event.target.value as Timeframe)} className="mt-1.5 h-10 w-full rounded-md border border-[#e0e5df] bg-white px-3 text-sm">
+            <option value="today">Today</option><option value="this_week">Last 7 days</option><option value="this_month">This month</option><option value="all_time">All time</option>
+          </select>
+        </label>
+        <button onClick={() => void loadAnalytics()} disabled={isLoading} className="inline-flex h-10 items-center gap-2 rounded-md border border-[#dfe4df] px-3 text-sm font-medium hover:bg-[#f3f5f2] disabled:opacity-50">
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /> Refresh
+        </button>
       </div>
 
-      {/* Filters Toolbar */}
-      <div className="bg-white border border-[#E5E5E2] rounded-lg p-3 grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
-        {/* Date Range */}
-        <div>
-          <label className="block text-[11px] font-medium text-[#666666] uppercase mb-1">
-            Timeframe
-          </label>
-          <select
-            value={timeframe}
-            onChange={e => setTimeframe(e.target.value as any)}
-            className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
-          >
-            <option value="today">Today</option>
-            <option value="this_week">This Week</option>
-            <option value="this_month">This Month</option>
-            <option value="all_time">All Time</option>
-          </select>
-        </div>
-
-        {/* Kitchen */}
-        <div>
-          <label className="block text-[11px] font-medium text-[#666666] uppercase mb-1">
-            Kitchen
-          </label>
-          <select
-            value={kitchen}
-            onChange={e => setKitchen(e.target.value)}
-            className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
-          >
-            <option>Main Campus Kitchen</option>
-            <option>North Dining Hall #2</option>
-            <option>All Facilities Combined</option>
-          </select>
-        </div>
-
-        {/* Food Category */}
-        <div>
-          <label className="block text-[11px] font-medium text-[#666666] uppercase mb-1">
-            Category
-          </label>
-          <select
-            value={category}
-            onChange={e => setCategory(e.target.value)}
-            className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
-          >
-            <option value="all">All Categories</option>
-            <option value="grains">Grains & Rice</option>
-            <option value="lentils">Lentils & Dal</option>
-            <option value="vegetables">Produce & Vegetables</option>
-          </select>
-        </div>
-
-        {/* Meal Shift */}
-        <div>
-          <label className="block text-[11px] font-medium text-[#666666] uppercase mb-1">
-            Meal
-          </label>
-          <select
-            value={meal}
-            onChange={e => setMeal(e.target.value)}
-            className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
-          >
-            <option value="all">All Shifts</option>
-            <option value="breakfast">Breakfast</option>
-            <option value="lunch">Lunch</option>
-            <option value="dinner">Dinner</option>
-          </select>
-        </div>
-
-        {/* Data Classification */}
-        <div>
-          <label className="block text-[11px] font-medium text-[#666666] uppercase mb-1">
-            Source Data
-          </label>
-          <select
-            value={verifiedOnly ? 'verified' : 'all'}
-            onChange={e => setVerifiedOnly(e.target.value === 'verified')}
-            className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
-          >
-            <option value="all">All Records (incl. Demo)</option>
-            <option value="verified">Verified Scale Logs Only</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Methodology Drawer if toggled */}
-      {showMethodology && (
-        <div className="bg-[#F0F0EE] border border-[#E5E5E2] rounded-lg p-4 text-xs text-[#555555] space-y-2">
-          <div className="flex items-center justify-between font-semibold text-[#171717]">
-            <span>Calculation Methodology & Standards</span>
-            <button onClick={() => setShowMethodology(false)} className="text-xs hover:underline">
-              Dismiss
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1 font-mono text-[11px]">
-            <div>Meal: 0.40 kg / standard portion (FAO)</div>
-            <div>CO₂e: 2.50 kg CO₂e / kg diverted food (WRAP)</div>
-            <div>Water: 850 L / kg composite institutional food</div>
-            <div>Financial: ₹160.00 / kg standard raw catering cost</div>
-          </div>
+      {error && (
+        <div role="alert" className="flex items-center justify-between rounded-md border border-[#efc7c1] bg-[#fff5f3] px-3 py-2.5 text-sm text-[#87372b]">
+          <span>{error}</span>
+          <button onClick={() => void loadAnalytics()} className="font-medium underline underline-offset-2">Retry</button>
         </div>
       )}
 
-      {/* Primary Key Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <MetricBlock
-          label="FOOD DIVERTED"
-          value={metrics ? `${metrics.foodSavedKg.toFixed(1)} kg` : '72.0 kg'}
-          subtext="From municipal landfill"
-          badge={{ text: 'Diverted', variant: 'success' }}
-        />
-        <MetricBlock
-          label="MEALS RECOVERED"
-          value={metrics ? metrics.mealsEquivalent : 180}
-          subtext="Nutritional equivalents"
-          badge={{ text: 'Distributed', variant: 'success' }}
-        />
-        <MetricBlock
-          label="AVOIDED CO₂E"
-          value={metrics ? `${metrics.avoidedCo2eKg.toFixed(1)} kg` : '180.0 kg'}
-          subtext="Methane emissions prevented"
-        />
-        <MetricBlock
-          label="WATER CONSERVED"
-          value={metrics ? `${(metrics.waterSavedLiters / 1000).toFixed(1)}k L` : '61.2k L'}
-          subtext="Embedded virtual water"
-        />
-        <MetricBlock
-          label="COST RECOVERY"
-          value={metrics ? `₹${metrics.financialSavingsInr.toLocaleString()}` : '₹11,520'}
-          subtext="Raw procurement saved"
-        />
-      </div>
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <MetricBlock label="FOOD SAVED" value={value(metrics?.foodSavedKg, ' kg')} classificationTag="ESTIMATED" subtext="Derived from logged surplus and handovers" />
+        <MetricBlock label="WASTE REDUCED" value={value(metrics?.wasteReducedKg, ' kg')} classificationTag="ESTIMATED" subtext="Calculated by the impact methodology" />
+        <MetricBlock label="MEALS EQUIVALENT" value={value(metrics?.mealsEquivalent)} classificationTag="ESTIMATED" subtext="Conversion is methodology-dependent" />
+        <MetricBlock label="COST SAVINGS" value={metrics ? `₹${metrics.financialSavingsInr.toLocaleString()}` : isLoading ? '…' : '—'} classificationTag="ESTIMATED" subtext="Derived estimate, not ledger value" />
+      </section>
 
-      {/* Section 1: Production vs Consumption reconciliation */}
-      <div className="bg-white border border-[#E5E5E2] rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-xs font-semibold text-[#171717] uppercase tracking-wider">
-              Production vs Consumption
-            </h2>
-            <p className="text-xs text-[#666666]">Reconciled weight volume over the past 5 operational days (kg)</p>
-          </div>
-          <span className="text-xs font-mono text-[#666666]">Target efficiency: &gt;90%</span>
+      {isLoading && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" role="status" aria-label="Loading analytics">
+          <div className="h-72 animate-pulse rounded-lg border border-[#e2e6e1] bg-white" />
+          <div className="h-72 animate-pulse rounded-lg border border-[#e2e6e1] bg-white" />
         </div>
+      )}
 
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={productionVsConsumption} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="2 2" stroke="#EAEAE7" vertical={false} />
-              <XAxis
-                dataKey="day"
-                stroke="#888888"
-                fontSize={11}
-                tickLine={false}
-                axisLine={{ stroke: '#E5E5E2' }}
-              />
-              <YAxis
-                stroke="#888888"
-                fontSize={11}
-                tickLine={false}
-                axisLine={{ stroke: '#E5E5E2' }}
-                unit="kg"
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#171717',
-                  border: 'none',
-                  borderRadius: '4px',
-                  color: '#ffffff',
-                  fontSize: '11px',
-                  padding: '6px 10px'
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-              <Bar dataKey="plannedKg" name="Planned Production" fill="#888888" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="consumedKg" name="Actual Consumed" fill="#1E3A2B" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="wasteKg" name="Recorded Waste" fill="#D97706" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+      {!isLoading && !error && !hasData && (
+        <div className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-10 text-center">
+          <h2 className="text-base font-semibold">No impact records for this period</h2>
+          <p className="mt-1 text-sm text-[#68736a]">Verified scale records and completed redistribution handovers will populate these reports.</p>
         </div>
-      </div>
+      )}
 
-      {/* Section 2: Waste by Food Category & Cost Impact Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left: Waste by category */}
-        <div className="bg-white border border-[#E5E5E2] rounded-lg p-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
+      {!isLoading && metrics && hasData && (
+        <>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.8fr)]">
+            <section className="rounded-lg border border-[#e2e6e1] bg-white p-4">
               <div>
-                <h3 className="text-xs font-semibold text-[#171717] uppercase tracking-wider">
-                  Waste by Food Category
-                </h3>
-                <p className="text-xs text-[#666666]">Cumulative distribution for selected timeframe</p>
+                <h2 className="text-base font-semibold">Waste trend & food diverted</h2>
+                <p className="mt-0.5 text-xs text-[#68736a]">Daily totals returned by the analytics service</p>
               </div>
-            </div>
+              {metrics.weeklyTrend.length ? (
+                <>
+                  <div className="mt-3 h-[270px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={metrics.weeklyTrend} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                        <CartesianGrid stroke="#edf0ec" vertical={false} />
+                        <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} />
+                        <YAxis tickLine={false} axisLine={false} fontSize={11} unit=" kg" />
+                        <Tooltip formatter={(entry: number) => [`${entry.toFixed(1)} kg`]} />
+                        <Legend />
+                        <Bar dataKey="wasteKg" name="Recorded waste" fill="#c58c42" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="divertedKg" name="Food diverted" fill="#4e765a" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </>
+              ) : (
+                <div className="grid h-64 place-items-center text-center text-sm text-[#68736a]">No daily trend series was returned for this period.</div>
+              )}
+            </section>
 
-            <div className="space-y-4 py-2">
-              {categoryBreakdown.map(cat => (
-                <div key={cat.name}>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-medium text-[#171717]">{cat.name}</span>
-                    <div className="flex items-center gap-2 font-mono text-[#666666]">
-                      <span>{cat.percentage}%</span>
-                      <span>·</span>
-                      <span>{cat.kg} kg</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-[#EAEAE7] h-2 rounded-sm overflow-hidden">
-                    <div
-                      className="bg-[#1E3A2B] h-full rounded-sm"
-                      style={{ width: `${cat.percentage}%` }}
-                    />
-                  </div>
+            <section className="rounded-lg border border-[#e2e6e1] bg-white p-4">
+              <h2 className="text-base font-semibold">Operations by meal</h2>
+              <p className="mt-0.5 text-xs text-[#68736a]">Waste and diverted quantities from available records</p>
+              {metrics.shiftBreakdown.length ? (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="text-[11px] font-semibold uppercase tracking-wide text-[#68736a]">
+                      <tr><th className="py-2">Meal</th><th className="py-2 text-right">Waste</th><th className="py-2 text-right">Diverted</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#edf0ec]">
+                      {metrics.shiftBreakdown.map(item => (
+                        <tr key={item.shift}>
+                          <td className="py-2.5 font-medium">{item.shift}</td>
+                          <td className="py-2.5 text-right tabular-nums">{item.wasteKg.toFixed(1)} kg</td>
+                          <td className="py-2.5 text-right tabular-nums">{item.divertedKg.toFixed(1)} kg</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-[11px] text-[#666666] pt-3 border-t border-[#E5E5E2]">
-            Grains remain the highest volume category; adjusting batch sizes by 5% recommended.
-          </p>
-        </div>
-
-        {/* Right: Cost Impact Breakdown */}
-        <div className="bg-white border border-[#E5E5E2] rounded-lg p-4 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h3 className="text-xs font-semibold text-[#171717] uppercase tracking-wider">
-                  Financial & Resource Reconciliation
-                </h3>
-                <p className="text-xs text-[#666666]">Institutional balance sheet variance</p>
+              ) : (
+                <div className="grid h-52 place-items-center text-center text-sm text-[#68736a]">No meal breakdown was returned.</div>
+              )}
+              <div className="mt-4 border-t border-[#edf0ec] pt-3 text-xs text-[#68736a]">
+                {metrics.totalLogsCount.toLocaleString()} source records · {metrics.dataClassification === 'VERIFIED_ONLY' ? 'verified only' : 'demo and verified data'}
               </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-[#E5E5E2] text-[11px] font-semibold text-[#666666] uppercase">
-                    <th className="py-2">Factor</th>
-                    <th className="py-2 text-right">Volume</th>
-                    <th className="py-2 text-right">Cost Impact</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#EAEAE7]">
-                  <tr>
-                    <td className="py-2.5 font-medium text-[#171717]">Unprevented Plate Waste</td>
-                    <td className="py-2.5 text-right font-mono text-[#666666]">18.1 kg</td>
-                    <td className="py-2.5 text-right font-mono text-[#9B1C1C]">-₹2,896</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-medium text-[#171717]">Surplus Rescued & Redistributed</td>
-                    <td className="py-2.5 text-right font-mono text-[#666666]">72.0 kg</td>
-                    <td className="py-2.5 text-right font-mono text-[#1E5631]">+₹11,520</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 font-medium text-[#171717]">Municipal Landfill Surcharge Averted</td>
-                    <td className="py-2.5 text-right font-mono text-[#666666]">72.0 kg</td>
-                    <td className="py-2.5 text-right font-mono text-[#1E5631]">+₹1,440</td>
-                  </tr>
-                  <tr className="font-semibold bg-[#F7F7F5]">
-                    <td className="py-2.5 px-1 text-[#171717]">Net Value Recovered</td>
-                    <td className="py-2.5 text-right font-mono text-[#171717]">—</td>
-                    <td className="py-2.5 px-1 text-right font-mono text-[#1E5631]">+₹10,064</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            </section>
           </div>
 
-          <div className="pt-3 border-t border-[#E5E5E2] text-[11px] text-[#666666]">
-            Audited in compliance with institutional sustainability ESG disclosure protocols.
-          </div>
-        </div>
-      </div>
+          <section className="rounded-lg border border-[#e2e6e1] bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold">Environmental impact</h2>
+                <p className="mt-0.5 text-xs text-[#68736a]">Derived indicators are estimates, not direct measurements.</p>
+              </div>
+              <button onClick={() => setShowMethodology(show => !show)} className="inline-flex items-center gap-2 rounded-md border border-[#dfe4df] px-3 py-2 text-sm font-medium hover:bg-[#f3f5f2]">
+                <Info className="h-4 w-4" /> Methodology
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <MetricBlock label="AVOIDED EMISSIONS" value={`${metrics.avoidedCo2eKg.toFixed(1)} kg CO₂e`} classificationTag="ESTIMATED" />
+              <MetricBlock label="WATER FOOTPRINT SAVED" value={`${metrics.waterSavedLiters.toLocaleString()} L`} classificationTag="ESTIMATED" />
+            </div>
+            {showMethodology && (
+              <dl className="mt-4 grid gap-3 border-t border-[#edf0ec] pt-4 text-sm sm:grid-cols-2">
+                <div><dt className="text-xs text-[#68736a]">Meal equivalence</dt><dd className="mt-1">{metrics.methodology.mealConversionFormula}</dd></div>
+                <div><dt className="text-xs text-[#68736a]">Emissions factor</dt><dd className="mt-1">{metrics.methodology.co2eEmissionFactor}</dd></div>
+                <div><dt className="text-xs text-[#68736a]">Water factor</dt><dd className="mt-1">{metrics.methodology.waterFootprintFactor}</dd></div>
+                <div><dt className="text-xs text-[#68736a]">Cost factor</dt><dd className="mt-1">{metrics.methodology.financialCostFactor}</dd></div>
+                {!!metrics.methodology.sourceReferences.length && (
+                  <div className="sm:col-span-2"><dt className="text-xs text-[#68736a]">References</dt><dd className="mt-1">{metrics.methodology.sourceReferences.join(' · ')}</dd></div>
+                )}
+              </dl>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 };

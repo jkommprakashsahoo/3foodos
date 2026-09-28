@@ -1,10 +1,11 @@
 // FoodWise AI: Operational Waste Confirmation Form
 // Professional enterprise form with detected food list, waste levels, physical scale inputs, and "Review before saving" callout
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Scale, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { DetectedFoodWasteItem, WasteScanResult } from '../types.ts';
 import { Badge } from './ui/Badge.tsx';
+import { createWasteRecord } from '../services/waste.ts';
 
 interface ConfirmWasteModalProps {
   isOpen: boolean;
@@ -24,56 +25,23 @@ export const ConfirmWasteModal: React.FC<ConfirmWasteModalProps> = ({
   onOpenSurplusWithItem
 }) => {
   // Extract detected items or provide standard defaults
-  const detectedItems: DetectedFoodWasteItem[] = scanResult?.foodItems?.length
-    ? scanResult.foodItems
-    : [
-        {
-          name: 'Steamed Basmati Rice',
-          category: 'grain',
-          wasteLevel: 'high',
-          estimatedFillPercentage: 70,
-          visualConfidencePercentage: 88,
-          observations: 'Steam table GN pan residue',
-          recommendedSuggestedUnit: 'kg'
-        },
-        {
-          name: 'Yellow Dal Tadka',
-          category: 'lentil_curry',
-          wasteLevel: 'medium',
-          estimatedFillPercentage: 40,
-          visualConfidencePercentage: 82,
-          observations: 'Serving vessel leftover',
-          recommendedSuggestedUnit: 'kg'
-        },
-        {
-          name: 'Mixed Seasonal Vegetables',
-          category: 'vegetable',
-          wasteLevel: 'low',
-          estimatedFillPercentage: 25,
-          visualConfidencePercentage: 80,
-          observations: 'Cooked curry remainder',
-          recommendedSuggestedUnit: 'kg'
-        }
-      ];
+  const detectedItems: DetectedFoodWasteItem[] = scanResult?.foodItems || [];
 
-  // Quantities per detected item
-  const [quantities, setQuantities] = useState<Record<string, string>>({
-    [detectedItems[0]?.name || 'Steamed Basmati Rice']: '5.8',
-    [detectedItems[1]?.name || 'Yellow Dal Tadka']: '2.1',
-    [detectedItems[2]?.name || 'Mixed Seasonal Vegetables']: '1.5'
-  });
-
-  const [wasteLevels, setWasteLevels] = useState<Record<string, 'high' | 'medium' | 'low'>>({
-    [detectedItems[0]?.name || 'Steamed Basmati Rice']: detectedItems[0]?.wasteLevel || 'high',
-    [detectedItems[1]?.name || 'Yellow Dal Tadka']: detectedItems[1]?.wasteLevel || 'medium',
-    [detectedItems[2]?.name || 'Mixed Seasonal Vegetables']: detectedItems[2]?.wasteLevel || 'low'
-  });
+  const [quantities, setQuantities] = useState<Record<string, string>>({});
+  const [wasteLevels, setWasteLevels] = useState<Record<string, 'high' | 'medium' | 'low'>>({});
 
   const [shift, setShift] = useState<string>('Lunch');
   const [station, setStation] = useState<string>('Station #2 Dish Return Scale');
-  const [isConfirmed, setIsConfirmed] = useState<boolean>(true);
+  const [isConfirmed, setIsConfirmed] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setQuantities(Object.fromEntries(detectedItems.map(item => [item.name, ''])));
+    setWasteLevels(Object.fromEntries(detectedItems.map(item => [item.name, item.wasteLevel])));
+    setIsConfirmed(false);
+    setErrorMessage(null);
+  }, [scanResult]);
 
   if (!isOpen) return null;
 
@@ -121,27 +89,18 @@ export const ConfirmWasteModal: React.FC<ConfirmWasteModalProps> = ({
     try {
       // Save records sequentially
       for (const entry of itemsToSave) {
-        const response = await fetch('/api/waste-records', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            food_name: entry.name,
-            user_confirmed_quantity: entry.qty,
-            unit: 'kg',
-            waste_level: entry.level,
-            service_shift: shift,
-            station_name: station,
-            notes: `Recorded at ${station}`,
-            image_url: capturedImage?.startsWith('data:') ? 'Live Camera Capture' : null,
-            ai_analysis_json: scanResult,
-            is_demo: false
-          })
+        await createWasteRecord({
+          food_name: entry.name,
+          user_confirmed_quantity: entry.qty,
+          unit: 'kg',
+          waste_level: entry.level,
+          service_shift: shift,
+          station_name: station,
+          notes: `Recorded at ${station}`,
+          image_url: null,
+          ai_analysis_json: scanResult,
+          is_demo: false
         });
-
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || `Failed to save ${entry.name}.`);
-        }
       }
 
       onRecordSaved();
@@ -174,6 +133,11 @@ export const ConfirmWasteModal: React.FC<ConfirmWasteModalProps> = ({
 
         {/* Content */}
         <div className="p-5 space-y-4 overflow-y-auto">
+          {!detectedItems.length && (
+            <div role="alert" className="rounded-md border border-[#e9c9a6] bg-[#fff8ee] p-3 text-sm text-[#765124]">
+              The analysis did not identify food items. Retake a clearer image or close this form; no quantities have been prefilled.
+            </div>
+          )}
           {/* Shift and Station Controls */}
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
@@ -269,9 +233,9 @@ export const ConfirmWasteModal: React.FC<ConfirmWasteModalProps> = ({
 
           {/* Important Callout: Review before saving */}
           <div className="bg-[#F0F0EE] border border-[#E5E5E2] rounded p-3 text-xs text-[#555555]">
-            <p className="font-medium text-[#171717] mb-0.5">Review before saving</p>
+            <p className="font-medium text-[#171717] mb-0.5">Human confirmation required</p>
             <p className="text-[11px] leading-relaxed">
-              Verify values match the physical scale readout. Once saved, records are permanently written to the institutional waste registry.
+            Visual assessment does not determine weight. Enter quantities from the kitchen scale; these operator-confirmed values are what will be saved.
             </p>
           </div>
 

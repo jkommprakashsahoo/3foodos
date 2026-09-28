@@ -15,14 +15,22 @@ import {
 } from 'lucide-react';
 import { WasteRecord } from '../types.ts';
 import { Badge } from './ui/Badge.tsx';
+import { listWasteRecords } from '../services/waste.ts';
 
 interface WasteHistoryViewProps {
   onScanNewTray: () => void;
+  demoMode: boolean;
+  initialSearch?: string;
 }
 
-export const WasteHistoryView: React.FC<WasteHistoryViewProps> = ({ onScanNewTray }) => {
+export const WasteHistoryView: React.FC<WasteHistoryViewProps> = ({ onScanNewTray, demoMode, initialSearch = '' }) => {
   const [records, setRecords] = useState<WasteRecord[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>(initialSearch);
+  const [filterFood, setFilterFood] = useState<string>('All');
+  const [filterStation, setFilterStation] = useState<string>('All');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [filterShift, setFilterShift] = useState<string>('All');
   const [filterLevel, setFilterLevel] = useState<string>('All');
   const [filterType, setFilterType] = useState<'All' | 'Verified' | 'Demo'>('All');
@@ -35,22 +43,24 @@ export const WasteHistoryView: React.FC<WasteHistoryViewProps> = ({ onScanNewTra
 
   const fetchRecords = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      const res = await fetch('/api/waste-records?includeDemo=true');
-      const json = await res.json();
-      if (json.success) {
-        setRecords(json.records);
-      }
+      const result = await listWasteRecords(demoMode);
+      setRecords(result.records);
     } catch (err) {
-      console.error('[History fetch error]', err);
+      setError(err instanceof Error ? err.message : 'Unable to load waste records.');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRecords();
-  }, []);
+    void fetchRecords();
+  }, [demoMode]);
+
+  useEffect(() => {
+    setSearchTerm(initialSearch);
+  }, [initialSearch]);
 
   // Filter records
   const filteredRecords = records.filter(r => {
@@ -61,12 +71,16 @@ export const WasteHistoryView: React.FC<WasteHistoryViewProps> = ({ onScanNewTra
 
     const matchesShift = filterShift === 'All' || r.service_shift === filterShift;
     const matchesLevel = filterLevel === 'All' || r.waste_level === filterLevel.toLowerCase();
+    const matchesFood = filterFood === 'All' || r.food_name === filterFood;
+    const matchesStation = filterStation === 'All' || r.station_name === filterStation;
+    const recordDate = r.created_at.slice(0, 10);
+    const matchesDate = (!dateFrom || recordDate >= dateFrom) && (!dateTo || recordDate <= dateTo);
     const matchesType =
       filterType === 'All' ||
       (filterType === 'Verified' && !r.is_demo) ||
       (filterType === 'Demo' && r.is_demo);
 
-    return matchesSearch && matchesShift && matchesLevel && matchesType;
+    return matchesSearch && matchesShift && matchesLevel && matchesFood && matchesStation && matchesType && matchesDate;
   });
 
   // Calculate pagination
@@ -150,6 +164,12 @@ export const WasteHistoryView: React.FC<WasteHistoryViewProps> = ({ onScanNewTra
       </div>
 
       {/* Filters Bar */}
+      {error && (
+        <div role="alert" className="flex items-center justify-between rounded-md border border-[#efc7c1] bg-[#fff5f3] px-3 py-2.5 text-sm text-[#87372b]">
+          <span>{error}</span>
+          <button onClick={() => void fetchRecords()} className="font-medium underline underline-offset-2">Retry</button>
+        </div>
+      )}
       <div className="bg-white border border-[#E5E5E2] rounded-lg p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
           {/* Search */}
@@ -182,7 +202,34 @@ export const WasteHistoryView: React.FC<WasteHistoryViewProps> = ({ onScanNewTra
             <option value="Dinner">Dinner</option>
           </select>
 
-          {/* Waste Level Filter */}
+          <select
+            value={filterFood}
+            onChange={e => {
+              setFilterFood(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
+            aria-label="Filter by food item"
+          >
+            <option value="All">All Food Items</option>
+            {[...new Set(records.map(record => record.food_name))].sort().map(food => <option key={food} value={food}>{food}</option>)}
+          </select>
+
+          <select
+            value={filterStation}
+            onChange={e => { setFilterStation(e.target.value); setCurrentPage(1); }}
+            className="bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
+            aria-label="Filter by kitchen station"
+          >
+            <option value="All">All Stations</option>
+            {[...new Set(records.map(record => record.station_name))].sort().map(station => <option key={station} value={station}>{station}</option>)}
+          </select>
+
+          <label className="sr-only" htmlFor="waste-date-from">From date</label>
+          <input id="waste-date-from" type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setCurrentPage(1); }} aria-label="Filter from date" className="rounded border border-[#E5E5E2] bg-[#F7F7F5] px-2 py-1.5 text-xs" />
+          <label className="sr-only" htmlFor="waste-date-to">To date</label>
+          <input id="waste-date-to" type="date" value={dateTo} min={dateFrom || undefined} onChange={e => { setDateTo(e.target.value); setCurrentPage(1); }} aria-label="Filter to date" className="rounded border border-[#E5E5E2] bg-[#F7F7F5] px-2 py-1.5 text-xs" />
+
           <select
             value={filterLevel}
             onChange={e => {

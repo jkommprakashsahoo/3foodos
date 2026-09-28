@@ -11,7 +11,10 @@
 | `/api/forecast` | GET | Demand forecast for a shift and food item |
 | `/api/surplus` | GET/POST | Manage surplus listings |
 | `/api/match-surplus` | POST | Rank compatible receiver organizations |
-| `/api/surplus/:id` | PATCH | Move a surplus listing through its lifecycle |
+| `/api/redistribution` | GET | Load receiver and persisted transfer data |
+| `/api/redistribution/assign` | POST | Persist a receiver assignment using supplied kitchen coordinates |
+| `/api/redistribution/:id/status` | PATCH | Advance an assigned transfer; measured pickup temperature is required |
+| `/api/surplus/:id` | PATCH | Update surplus status or record a measured receiver handover |
 | `/api/analytics` | GET | Sustainability and financial impact |
 
 `POST /api/analyze-waste` remains available as a compatibility alias for clients using the earlier route name.
@@ -24,6 +27,8 @@
   "mimeType": "image/jpeg"
 }
 ```
+
+Receiver matching and assignment require `kitchenLat` and `kitchenLng` from a configured, verified kitchen location. The API intentionally does not infer or default coordinates. Match scores and distance are algorithmic estimates, not route-provider or live GPS data. A delivered handover requires measured received weight, temperature, and receiver name.
 
 The response is shaped as:
 
@@ -54,4 +59,6 @@ Vision analysis is advisory. The scale-confirmed `user_confirmed_quantity` field
 - Put the Express server behind HTTPS before enabling camera capture.
 - Restrict production CORS and authentication policies to the organization’s domain.
 - Keep demo data disabled for verified reporting.
+- Configure and validate institutional kitchen and receiver coordinates before enabling distance-based matching.
+- Connect an actual route/map provider before displaying route geometry or live ETA.
 - Run `npm run lint` and `npm run build` before release.

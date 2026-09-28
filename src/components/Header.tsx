@@ -1,18 +1,8 @@
 import React, { useState } from 'react';
-import {
-  Search,
-  Bell,
-  Building2,
-  User,
-  ChevronDown,
-  Check,
-  ExternalLink,
-  ShieldCheck,
-  Database
-} from 'lucide-react';
-import { DatabaseTelemetry, UserRole } from '../types.ts';
-import { AuthUser } from './AuthModal.tsx';
-import { NavTab } from './Navigation.tsx';
+import { Camera, Search } from 'lucide-react';
+import type { DatabaseTelemetry, UserRole } from '../types.ts';
+import type { AuthUser } from './AuthModal.tsx';
+import type { NavTab } from './Navigation.tsx';
 
 interface HeaderProps {
   activeTab: NavTab;
@@ -24,163 +14,97 @@ interface HeaderProps {
   demoMode: boolean;
   onToggleDemoMode: () => void;
   onOpenSettings: () => void;
+  onOpenScanner: () => void;
+  onSearch: (term: string) => void;
 }
+
+const pageTitles: Partial<Record<NavTab, string>> = {
+  dashboard: 'Overview',
+  waste: 'Waste',
+  history: 'Waste records',
+  scan: 'Waste',
+  forecast: 'Demand forecast',
+  production: 'Production plan',
+  surplus: 'Surplus food',
+  redistribution: 'Redistribution',
+  analytics: 'Analytics',
+  operations: 'Operations',
+  organizations: 'Organizations',
+  users: 'Users',
+  settings: 'Settings',
+  help: 'Help',
+  receiver: 'Receiver portal'
+};
 
 export const Header: React.FC<HeaderProps> = ({
   activeTab,
   currentRole,
   currentUser,
   onOpenAuth,
-  databaseTelemetry,
-  geminiConfigured,
   demoMode,
   onToggleDemoMode,
-  onOpenSettings
+  onOpenScanner,
+  onSearch
 }) => {
-  const [showOrgDropdown, setShowOrgDropdown] = useState(false);
-  const [selectedKitchen, setSelectedKitchen] = useState('Main Campus Kitchen');
-
-  // Derive human-readable page title
-  const getPageTitle = (tab: NavTab): string => {
-    switch (tab) {
-      case 'dashboard':
-        return 'Overview';
-      case 'waste':
-      case 'history':
-      case 'scan':
-        return 'Waste';
-      case 'forecast':
-        return 'Demand Forecast';
-      case 'production':
-        return 'Production';
-      case 'surplus':
-        return 'Surplus';
-      case 'redistribution':
-        return 'Redistribution';
-      case 'analytics':
-        return 'Analytics';
-      case 'operations':
-        return 'Operations';
-      case 'organizations':
-        return 'Organizations';
-      case 'users':
-        return 'Users';
-      case 'settings':
-        return 'Settings';
-      case 'help':
-        return 'Documentation';
-      case 'receiver':
-        return 'Receiver Portal';
-      default:
-        return 'Overview';
-    }
-  };
-
-  const kitchenOptions = [
-    'Main Campus Kitchen',
-    'North Dining Hall #2',
-    'Executive Banquet Unit'
-  ];
+  const [searchTerm, setSearchTerm] = useState('');
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/85 backdrop-blur-xl border-b border-[#dfe8e0] px-4 lg:px-6 flex items-center justify-between shadow-[0_4px_20px_rgba(31,92,69,0.04)]">
-      {/* Left: Brand + Divider + Page Title */}
-      <div className="flex items-center gap-4">
-        {/* Brand */}
-        <div className="flex items-center gap-2">
-          <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#1f5c45] to-[#52b788] inline-flex items-center justify-center text-white text-xs font-bold shadow-sm">FW</span>
-          <div>
-            <span className="font-semibold text-sm tracking-tight text-[#15231b] block leading-none">FoodWise</span>
-            <span className="text-[10px] text-[#718078] tracking-[0.12em] uppercase">Kitchen intelligence</span>
-          </div>
-        </div>
-
-        <div className="h-4 w-px bg-[#E5E5E2]" />
-
-        {/* Page Title */}
-        <h1 className="text-sm font-semibold text-[#15231b]">
-          {getPageTitle(activeTab)}
-        </h1>
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#e2e6e1] bg-white px-4 lg:px-6">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-[#315a3a] text-xs font-bold text-white" aria-hidden="true">FW</span>
+        <span className="hidden text-sm font-semibold tracking-[0.08em] sm:inline">FOODWISE</span>
+        <span className="h-5 w-px shrink-0 bg-[#e2e6e1]" />
+        <span className="truncate text-sm font-semibold" aria-label="Current page">{pageTitles[activeTab] || 'Overview'}</span>
       </div>
 
-      {/* Right: Search + Demo Tag + Org Selector + Profile */}
-      <div className="flex items-center gap-2.5">
-        {/* Quick Search */}
-        <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded bg-white border border-[#E5E5E2] text-xs text-[#777777] w-48 hover:border-[#CCCCCC] transition-colors">
-          <Search className="w-3.5 h-3.5 text-[#999999]" />
+      <div className="flex items-center gap-2 sm:gap-3">
+        <form
+          onSubmit={event => {
+            event.preventDefault();
+            if (searchTerm.trim()) onSearch(searchTerm.trim());
+          }}
+          role="search"
+          className="hidden h-9 w-48 items-center gap-2 rounded-md border border-[#dfe4df] px-2.5 md:flex"
+        >
+          <Search className="h-4 w-4 shrink-0 text-[#68736a]" />
           <input
-            type="text"
-            placeholder="Search records, items..."
-            className="w-full bg-transparent border-none outline-none text-xs text-[#171717] placeholder-[#999999]"
+            value={searchTerm}
+            onChange={event => setSearchTerm(event.target.value)}
+            placeholder="Search waste records"
+            aria-label="Search waste records"
+            className="w-full bg-transparent text-xs outline-none placeholder:text-[#879188]"
           />
-          <kbd className="text-[10px] font-mono text-[#888888] bg-[#F0F0EE] px-1 py-0.2 rounded border border-[#E5E5E2]">
-            /
-          </kbd>
-        </div>
-
-        {/* Demo / Verified Data Toggle */}
+        </form>
         <button
-          onClick={onToggleDemoMode}
-          title="Toggle Demo baseline records vs Verified user entries"
-          className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
-            demoMode
-              ? 'bg-[#FFFBEB] text-[#B45309] border-[#FDE68A] hover:bg-[#FEF3C7]'
-              : 'bg-white text-[#1E3A2B] border-[#C2E0CC] hover:bg-[#F2F8F4]'
-          }`}
+          type="button"
+          onClick={onOpenScanner}
+          aria-label="Scan food waste"
+          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-[#315a3a] px-2.5 text-xs font-medium text-white hover:bg-[#274a30] sm:px-3"
         >
-          <span className={`w-1.5 h-1.5 rounded-full ${demoMode ? 'bg-[#D97706]' : 'bg-[#1E3A2B]'}`}></span>
-          <span className="font-mono text-[11px] font-medium">{demoMode ? 'DEMO' : 'VERIFIED'}</span>
+          <Camera className="h-4 w-4" /><span className="hidden sm:inline">Scan waste</span>
         </button>
-
-        {/* Kitchen Organization Selector */}
-        <div className="relative hidden sm:block">
-          <button
-            onClick={() => setShowOrgDropdown(!showOrgDropdown)}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded bg-white border border-[#E5E5E2] text-[#171717] hover:bg-[#FAFAFA] transition-colors"
-          >
-            <Building2 className="w-3.5 h-3.5 text-[#666666]" />
-            <span className="font-medium max-w-[140px] truncate">{selectedKitchen}</span>
-            <ChevronDown className="w-3 h-3 text-[#888888]" />
-          </button>
-
-          {showOrgDropdown && (
-            <div className="absolute right-0 mt-1 w-52 bg-white border border-[#E5E5E2] rounded-md shadow-sm py-1 z-50 text-xs">
-              <div className="px-3 py-1 text-[11px] font-medium text-[#888888] uppercase tracking-wider">
-                Select Kitchen
-              </div>
-              {kitchenOptions.map(k => (
-                <button
-                  key={k}
-                  onClick={() => {
-                    setSelectedKitchen(k);
-                    setShowOrgDropdown(false);
-                  }}
-                  className="w-full px-3 py-1.5 text-left text-[#171717] hover:bg-[#F7F7F5] flex items-center justify-between"
-                >
-                  <span>{k}</span>
-                  {selectedKitchen === k && <Check className="w-3.5 h-3.5 text-[#1E3A2B]" />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* User Account / Profile */}
         <button
-          onClick={onOpenAuth}
-          className="flex items-center gap-2 pl-2 pr-2.5 py-1 rounded hover:bg-[#EAEAE7] text-left transition-colors border border-transparent hover:border-[#E5E5E2]"
+          type="button"
+          onClick={onToggleDemoMode}
+          aria-label={demoMode ? 'Disable demo data' : 'Enable demo data'}
+          title={demoMode ? 'Demo data is included. Select to disable.' : 'Only verified data is shown. Select to include demo data.'}
+          className={`hidden h-8 items-center rounded-md border px-2.5 text-[11px] font-medium sm:inline-flex ${demoMode ? 'border-[#ead9b4] bg-[#fffaf0] text-[#765124]' : 'border-[#dfe4df] bg-white text-[#59645c]'}`}
         >
-          <div className="w-6 h-6 rounded bg-[#1E3A2B] text-white flex items-center justify-center text-xs font-medium">
-            {currentUser?.name ? currentUser.name.charAt(0) : 'A'}
-          </div>
-          <div className="hidden md:block">
-            <p className="text-xs font-medium text-[#171717] leading-none">
-              {currentUser?.name || 'Arjun Rao'}
-            </p>
-            <p className="text-[11px] text-[#666666] leading-tight">
-              {currentRole}
-            </p>
-          </div>
+          {demoMode ? 'DEMO DATA INCLUDED' : 'VERIFIED DATA'}
+        </button>
+        <button
+          type="button"
+          onClick={onOpenAuth}
+          aria-label={`Profile: ${currentUser?.name || 'user'}, ${currentRole}`}
+          className="flex h-9 items-center gap-2 rounded-md px-2 text-left hover:bg-[#f3f5f2]"
+        >
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#eaf0ea] text-xs font-semibold text-[#315a3a]">
+            {currentUser?.name?.charAt(0).toUpperCase() || '?'}
+          </span>
+          <span className="hidden max-w-32 sm:block">
+            <span className="block truncate text-xs font-medium">{currentUser?.name || 'Account'}</span>
+            <span className="block truncate text-[10px] text-[#68736a]">{currentRole}</span>
+          </span>
         </button>
       </div>
     </header>

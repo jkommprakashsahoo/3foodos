@@ -15,82 +15,81 @@ import {
 } from 'lucide-react';
 import { HandoverRecord, SurplusListing } from '../types.ts';
 import { Badge } from './ui/Badge.tsx';
+import { listHandovers } from '../services/redistribution.ts';
+import { completeSurplusHandover, listSurplus } from '../services/surplus.ts';
 
-export const ReceiverPortalView: React.FC = () => {
+interface ReceiverPortalViewProps {
+  demoMode: boolean;
+}
+
+export const ReceiverPortalView: React.FC<ReceiverPortalViewProps> = ({ demoMode }) => {
   const [incomingBatches, setIncomingBatches] = useState<SurplusListing[]>([]);
   const [handovers, setHandovers] = useState<HandoverRecord[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<SurplusListing | null>(null);
-  const [receivingTemp, setReceivingTemp] = useState<string>('63.5');
-  const [receivingWeight, setReceivingWeight] = useState<string>('12.0');
-  const [receiverNotes, setReceiverNotes] = useState<string>('Seals intact. Thermal threshold verified compliant.');
+  const [receivingTemp, setReceivingTemp] = useState('');
+  const [receivingWeight, setReceivingWeight] = useState('');
+  const [receiverName, setReceiverName] = useState('');
+  const [receiverNotes, setReceiverNotes] = useState('');
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [verifiedSuccess, setVerifiedSuccess] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadReceiverData = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
     try {
-      const [surplusRes, handoversRes] = await Promise.all([
-        fetch('/api/surplus'),
-        fetch('/api/handovers')
+      const [surplusData, handoverData] = await Promise.all([
+        listSurplus(demoMode),
+        listHandovers(demoMode)
       ]);
-
-      const surplusJson = await surplusRes.json();
-      const handoversJson = await handoversRes.json();
-
-      if (surplusJson.success) {
-        const pending = surplusJson.surplus.filter(
-          (s: SurplusListing) => s.status === 'dispatched' || s.status === 'matched'
-        );
-        setIncomingBatches(pending);
-        if (pending.length > 0 && !selectedBatch) {
+      const pending = surplusData.surplus.filter(
+        (s: SurplusListing) => s.status === 'dispatched' || s.status === 'matched'
+      );
+      setIncomingBatches(pending);
+      if (pending.length > 0 && !selectedBatch) {
           setSelectedBatch(pending[0]);
-          setReceivingWeight(pending[0].quantity.toString());
-        }
+          setReceivingWeight('');
       }
-
-      if (handoversJson.success) {
-        setHandovers(handoversJson.handovers);
-      }
+      setHandovers(handoverData.handovers);
     } catch (err) {
-      console.error('[Receiver Portal Error]', err);
+      setErrorMessage(err instanceof Error ? err.message : 'Unable to load receiver data.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadReceiverData();
-  }, []);
+    void loadReceiverData();
+  }, [demoMode]);
 
   const handleConfirmReceipt = async () => {
     if (!selectedBatch) return;
+    const weight = Number(receivingWeight);
+    const temperature = Number(receivingTemp);
+    if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(temperature) || temperature < -30 || temperature > 100 || !receiverName.trim()) {
+      setErrorMessage('Enter the measured received weight, probe temperature, and receiver organization before completing intake.');
+      return;
+    }
     setIsVerifying(true);
+    setErrorMessage(null);
 
     try {
-      await fetch(`/api/surplus/${selectedBatch.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'delivered' })
+      await completeSurplusHandover({
+        id: selectedBatch.id,
+        weightKg: weight,
+        temperatureCelsius: temperature,
+        receiverName: receiverName.trim(),
+        notes: receiverNotes.trim()
       });
-
-      const newHandover: HandoverRecord = {
-        id: `LOT-${Date.now().toString().slice(-4)}`,
-        item_composition: selectedBatch.food_name,
-        notes: receiverNotes,
-        weight_kg: parseFloat(receivingWeight) || selectedBatch.quantity,
-        temperature_c: parseFloat(receivingTemp) || 63.5,
-        recipient_ngo: 'Asha Community Kitchen & Children Shelter',
-        status: 'Delivered & Safety Verified',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        is_demo: false
-      };
-
-      setHandovers(prev => [newHandover, ...prev]);
       setVerifiedSuccess(true);
       setTimeout(() => {
         setVerifiedSuccess(false);
         setSelectedBatch(null);
-        loadReceiverData();
+        void loadReceiverData();
       }, 1800);
     } catch (err) {
-      console.error('[Receipt error]', err);
+      setErrorMessage(err instanceof Error ? err.message : 'Unable to confirm receipt.');
     } finally {
       setIsVerifying(false);
     }
@@ -104,13 +103,7 @@ export const ReceiverPortalView: React.FC = () => {
           <h1 className="text-xl lg:text-2xl font-semibold text-[#171717] tracking-tight">
             Receiver Custody Portal
           </h1>
-          <p className="text-xs text-[#666666] mt-0.5">
-            Asha Community Kitchen & Shelter · Verification and physical intake inspection
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 font-mono text-xs text-[#666666] bg-white border border-[#E5E5E2] px-3 py-1.5 rounded">
-          <span>License: FSSAI-NGO-2024-8841</span>
+          <p className="text-xs text-[#666666] mt-0.5">Verify received weight and food temperature, then record the handover.</p>
         </div>
       </div>
 
@@ -128,11 +121,13 @@ export const ReceiverPortalView: React.FC = () => {
           </div>
 
           <div className="divide-y divide-[#EAEAE7] overflow-y-auto max-h-[500px]">
-            {incomingBatches.length === 0 ? (
+            {isLoading && <p role="status" className="p-8 text-center text-sm text-[#68736a]">Loading incoming consignments…</p>}
+            {!isLoading && incomingBatches.length === 0 && (
               <div className="p-8 text-center text-xs text-[#666666]">
                 No pending shipments currently en route.
               </div>
-            ) : (
+            )}
+            {!isLoading && incomingBatches.length > 0 && (
               incomingBatches.map(batch => {
                 const isSelected = selectedBatch?.id === batch.id;
                 return (
@@ -140,7 +135,7 @@ export const ReceiverPortalView: React.FC = () => {
                     key={batch.id}
                     onClick={() => {
                       setSelectedBatch(batch);
-                      setReceivingWeight(batch.quantity.toString());
+                      setReceivingWeight('');
                     }}
                     className={`w-full text-left p-3.5 transition-colors ${
                       isSelected ? 'bg-[#F2F8F4] border-l-2 border-[#1E3A2B]' : 'hover:bg-[#FAFAFA]'
@@ -181,6 +176,8 @@ export const ReceiverPortalView: React.FC = () => {
               </div>
 
               {/* Physical inspection controls */}
+              {errorMessage && <div role="alert" className="rounded-md border border-[#efc7c1] bg-[#fff5f3] px-3 py-2.5 text-sm text-[#87372b]">{errorMessage}</div>}
+              {demoMode && <Badge variant="demo">Demo data included</Badge>}
               <div className="space-y-3 text-xs">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -190,6 +187,8 @@ export const ReceiverPortalView: React.FC = () => {
                     <input
                       type="number"
                       step="0.1"
+                      min="0.1"
+                      required
                       value={receivingWeight}
                       onChange={e => setReceivingWeight(e.target.value)}
                       className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] font-mono outline-none"
@@ -203,11 +202,19 @@ export const ReceiverPortalView: React.FC = () => {
                     <input
                       type="number"
                       step="0.1"
+                      min="-30"
+                      max="100"
+                      required
                       value={receivingTemp}
                       onChange={e => setReceivingTemp(e.target.value)}
                       className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] font-mono outline-none"
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-[#666666] uppercase mb-1">Receiver organization</label>
+                  <input required value={receiverName} onChange={event => setReceiverName(event.target.value)} className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717]" />
                 </div>
 
                 <div>
@@ -225,7 +232,7 @@ export const ReceiverPortalView: React.FC = () => {
                 <div className="bg-[#F0F0EE] border border-[#E5E5E2] rounded p-3 text-xs text-[#555555]">
                   <p className="font-medium text-[#171717] mb-0.5">Chain of Custody Standard</p>
                   <p className="text-[11px] leading-relaxed">
-                    By signing, the receiver certifies that food was transported in sealed containers and verified above 60°C or below 5°C.
+                    Record actual intake measurements and follow applicable food-safety procedures. FoodWise does not certify safety.
                   </p>
                 </div>
               </div>

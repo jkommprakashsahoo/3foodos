@@ -82,6 +82,8 @@ export interface ForecastFactor {
 
 export interface DemandForecastData {
   hasSufficientData: boolean;
+  isDemo?: boolean;
+  forecastType?: 'REAL FORECAST' | 'DEMO FORECAST';
   message?: string;
   foodItemId: string;
   foodName: string;
@@ -150,6 +152,18 @@ export interface MatchRecommendation {
   isDietaryCompatible: boolean;
   transitRiskLevel: 'low' | 'medium' | 'high';
   recommendationReasons: string[];
+}
+
+export interface RedistributionAssignment {
+  id: string;
+  surplus_listing_id: string;
+  receiver_id: string;
+  match_score: number;
+  distance_km: number;
+  estimated_travel_time_mins: number;
+  status: 'matched' | 'accepted' | 'dispatched' | 'delivered' | 'rejected';
+  is_demo: boolean;
+  created_at: string;
 }
 
 export interface SustainabilityMetrics {

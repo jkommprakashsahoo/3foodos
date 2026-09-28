@@ -15,54 +15,57 @@ import {
 } from 'lucide-react';
 import { SurplusListing } from '../types.ts';
 import { Badge } from './ui/Badge.tsx';
+import { createSurplus, listSurplus } from '../services/surplus.ts';
 
 interface SurplusViewProps {
   onFindReceiver: (surplusId: string) => void;
   initialPreloadItem?: { name: string; quantity: number; unit: string } | null;
   onClearPreloadItem?: () => void;
+  demoMode: boolean;
 }
 
 export const SurplusView: React.FC<SurplusViewProps> = ({
   onFindReceiver,
   initialPreloadItem,
-  onClearPreloadItem
+  onClearPreloadItem,
+  demoMode
 }) => {
   const [listings, setListings] = useState<SurplusListing[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // New surplus form
   const [foodName, setFoodName] = useState('');
-  const [quantity, setQuantity] = useState('10.0');
-  const [temperature, setTemperature] = useState('65.0');
-  const [packaging, setPackaging] = useState('Hygienic Steel Sealed (GN 1/1)');
-  const [dietaryType, setDietaryType] = useState('Vegetarian');
-  const [hoursAvailable, setHoursAvailable] = useState('3.0');
-  const [pickupLocation, setPickupLocation] = useState('Central Kitchen Dock #2');
+  const [quantity, setQuantity] = useState('');
+  const [temperature, setTemperature] = useState('');
+  const [packaging, setPackaging] = useState('');
+  const [dietaryType, setDietaryType] = useState('');
+  const [hoursAvailable, setHoursAvailable] = useState('');
+  const [pickupLocation, setPickupLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchSurplus = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
-      const res = await fetch('/api/surplus');
-      const data = await res.json();
-      if (data.success) {
-        setListings(data.surplus);
-      }
+      const data = await listSurplus(demoMode);
+      setListings(data.surplus);
     } catch (err) {
-      console.error('[Surplus load error]', err);
+      setLoadError(err instanceof Error ? err.message : 'Unable to load surplus listings.');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSurplus();
-  }, []);
+    void fetchSurplus();
+  }, [demoMode]);
 
   // Handle preloaded item from waste scan
   useEffect(() => {
@@ -76,8 +79,8 @@ export const SurplusView: React.FC<SurplusViewProps> = ({
 
   const handleCreateSurplus = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!foodName || !quantity) {
-      setErrorMessage('Please provide food item name and quantity.');
+    if (!foodName.trim() || !quantity || !hoursAvailable || !pickupLocation.trim() || !temperature || !packaging || !dietaryType) {
+      setErrorMessage('Complete each required field before listing surplus.');
       return;
     }
 
@@ -86,39 +89,48 @@ export const SurplusView: React.FC<SurplusViewProps> = ({
       setErrorMessage('Quantity must be greater than 0.');
       return;
     }
+    const temperatureNum = Number(temperature);
+    const durationHours = Number(hoursAvailable);
+    if (!Number.isFinite(temperatureNum) || temperatureNum < -30 || temperatureNum > 100) {
+      setErrorMessage('Enter a valid food holding temperature between -30°C and 100°C.');
+      return;
+    }
+    if (!Number.isFinite(durationHours) || durationHours <= 0) {
+      setErrorMessage('Choose a valid availability duration.');
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMessage(null);
 
     try {
-      const availableDate = new Date(Date.now() + parseFloat(hoursAvailable) * 3600 * 1000);
-
-      const res = await fetch('/api/surplus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          food_name: foodName,
-          quantity: qtyNum,
-          unit: 'kg',
-          temperature_celsius: parseFloat(temperature) || 65.0,
-          packaging_type: packaging,
-          dietary_type: dietaryType,
-          available_until: availableDate.toISOString(),
-          pickup_location: pickupLocation,
-          notes: notes || 'Prepared under temperature supervision'
-        })
+      const availableDate = new Date(Date.now() + durationHours * 3600 * 1000);
+      await createSurplus({
+        food_name: foodName.trim(),
+        quantity: qtyNum,
+        unit: 'kg',
+        temperature_celsius: temperatureNum,
+        packaging_type: packaging,
+        dietary_type: dietaryType,
+        available_until: availableDate.toISOString(),
+        pickup_location: pickupLocation.trim(),
+        notes: notes.trim() || undefined,
+        is_demo: false
       });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Failed to list surplus batch.');
-      }
 
       setShowCreateModal(false);
       setFoodName('');
-      fetchSurplus();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Error creating surplus listing.');
+      setQuantity('');
+      setTemperature('');
+      setPackaging('');
+      setDietaryType('');
+      setHoursAvailable('');
+      setPickupLocation('');
+      setNotes('');
+      setSuccessMessage('Surplus listing created.');
+      void fetchSurplus();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Unable to create surplus listing.');
     } finally {
       setIsSubmitting(false);
     }
@@ -154,6 +166,12 @@ export const SurplusView: React.FC<SurplusViewProps> = ({
             Institutional surplus food ready for verified redistribution to certified receiver shelters
           </p>
         </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          {demoMode && <Badge variant="demo">Demo data included</Badge>}
+          {successMessage && <p role="status" className="text-[#315a3a]">{successMessage}</p>}
+        </div>
+        {loadError && <div role="alert" className="flex items-center justify-between rounded-md border border-[#efc7c1] bg-[#fff5f3] px-3 py-2.5 text-sm text-[#87372b]"><span>{loadError}</span><button onClick={() => void fetchSurplus()} className="font-medium underline underline-offset-2">Retry</button></div>}
 
         <button
           onClick={() => setShowCreateModal(true)}
@@ -367,7 +385,10 @@ export const SurplusView: React.FC<SurplusViewProps> = ({
                   </label>
                   <input
                     type="number"
+                    required
                     step="0.5"
+                    min="-30"
+                    max="100"
                     value={temperature}
                     onChange={e => setTemperature(e.target.value)}
                     className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] font-mono outline-none"
@@ -381,11 +402,14 @@ export const SurplusView: React.FC<SurplusViewProps> = ({
                     Dietary Classification
                   </label>
                   <select
+                    required
                     value={dietaryType}
                     onChange={e => setDietaryType(e.target.value)}
                     className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
                   >
+                    <option value="">Choose classification</option>
                     <option value="Vegetarian">Vegetarian</option>
+                    <option value="Mixed">Mixed</option>
                     <option value="Vegan">Vegan</option>
                     <option value="Non-Vegetarian">Non-Vegetarian</option>
                   </select>
@@ -395,10 +419,12 @@ export const SurplusView: React.FC<SurplusViewProps> = ({
                     Available For (Hours)
                   </label>
                   <select
+                    required
                     value={hoursAvailable}
                     onChange={e => setHoursAvailable(e.target.value)}
                     className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
                   >
+                    <option value="">Choose duration</option>
                     <option value="2.0">2.0 hours (immediate)</option>
                     <option value="3.5">3.5 hours (standard FSSAI)</option>
                     <option value="5.0">5.0 hours (chilled)</option>
@@ -411,6 +437,7 @@ export const SurplusView: React.FC<SurplusViewProps> = ({
                   Packaging Specification
                 </label>
                 <select
+                  required
                   value={packaging}
                   onChange={e => setPackaging(e.target.value)}
                   className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
@@ -427,11 +454,22 @@ export const SurplusView: React.FC<SurplusViewProps> = ({
                 </label>
                 <input
                   type="text"
+                  required
                   value={pickupLocation}
                   onChange={e => setPickupLocation(e.target.value)}
                   className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"
                 />
               </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-[#666666] uppercase mb-1">Notes (optional)</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="w-full resize-y bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-2 text-xs text-[#171717] outline-none" />
+              </div>
+
+              <p className="rounded-md border border-[#ead9b4] bg-[#fffaf0] p-3 text-xs leading-5 text-[#765124]">
+                AI image analysis does not certify food safety. Follow applicable food-safety procedures and verify handling conditions before listing.
+              </p>
+              <p className="text-xs text-[#68736a]">Photo upload is not supported by the current surplus API.</p>
 
               {errorMessage && (
                 <div className="p-2.5 rounded bg-[#FDF2F2] border border-[#F8B4B4] text-xs text-[#9B1C1C]">

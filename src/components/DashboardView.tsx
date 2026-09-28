@@ -1,41 +1,20 @@
-// FoodWise AI: Operational Kitchen Dashboard (Linear / Stripe inspired)
-// Clean data density, neutral tones, restrained typography, zero AI gimmicks
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ResponsiveContainer,
-  LineChart,
+  CartesianGrid,
   Line,
-  XAxis,
-  YAxis,
+  LineChart,
+  ResponsiveContainer,
   Tooltip,
-  CartesianGrid
+  XAxis,
+  YAxis
 } from 'recharts';
-import { Camera, TrendingUp, Plus, ArrowUpRight } from 'lucide-react';
+import { ArrowRight, Camera, RefreshCw } from 'lucide-react';
 import { NavTab } from './Navigation.tsx';
 import { MetricBlock } from './ui/MetricBlock.tsx';
 import { Badge } from './ui/Badge.tsx';
-import { SurplusListing, WasteRecord } from '../types.ts';
-
-interface DashboardMetrics {
-  hasData: boolean;
-  totalFoodProducedKg: number;
-  totalFoodConsumedKg: number;
-  totalFoodWastedKg: number;
-  totalFoodSavedKg: number;
-  redistributionBatchesCount: number;
-  redistributionKg: number;
-  wasteRatePercentage: number;
-  totalVerifiedWasteLogs: number;
-  recentHandovers: Array<{
-    lot: string;
-    item: string;
-    qty: string;
-    recipient: string;
-    eta: string;
-    status: string;
-  }>;
-}
+import type { SurplusListing, WasteRecord } from '../types.ts';
+import { getDashboardMetrics, listAttendance, listProduction } from '../services/dashboard.ts';
+import type { AttendanceRecord, DashboardMetrics, ProductionRecord } from '../services/dashboard.ts';
 
 interface DashboardViewProps {
   onNavigate: (tab: NavTab) => void;
@@ -45,6 +24,17 @@ interface DashboardViewProps {
   demoMode: boolean;
 }
 
+type Period = 7 | 30 | 90;
+
+const localDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const shiftLabel = (shift: string) => shift.charAt(0).toUpperCase() + shift.slice(1).toLowerCase();
+
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate,
   onOpenScanner,
@@ -53,310 +43,314 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   demoMode
 }) => {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [production, setProduction] = useState<ProductionRecord[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState<Period>(7);
 
-  // Fetch real database calculated metrics
-  const fetchMetrics = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/dashboard-metrics?includeDemo=${demoMode}`);
-      const json = await res.json();
-      if (json.success) {
-        setMetrics(json.metrics);
-      }
-    } catch (err) {
-      console.error('[Dashboard metrics load error]', err);
-    } finally {
-      setLoading(false);
-    }
+  const loadDashboard = async () => {
+    setIsLoading(true);
+    setError(null);
+    const results = await Promise.allSettled([
+      getDashboardMetrics(demoMode),
+      listProduction(demoMode),
+      listAttendance(demoMode)
+    ]);
+    const failures: string[] = [];
+    if (results[0].status === 'fulfilled') setMetrics(results[0].value.metrics);
+    else failures.push('summary metrics');
+    if (results[1].status === 'fulfilled') setProduction(results[1].value.records);
+    else failures.push('production records');
+    if (results[2].status === 'fulfilled') setAttendance(results[2].value.records);
+    else failures.push('attendance records');
+    setError(failures.length ? `Unable to load ${failures.join(' and ')}.` : null);
+    setIsLoading(false);
   };
 
   useEffect(() => {
-    fetchMetrics();
+    void loadDashboard();
   }, [demoMode, wasteRecords.length, surplusListings.length]);
 
-  // Seven-day historical waste trend (Clean, neutral data)
-  const wasteTrendData = [
-    { day: 'Mon', wasteKg: 11.2, plannedKg: 160 },
-    { day: 'Tue', wasteKg: 9.8, plannedKg: 172 },
-    { day: 'Wed', wasteKg: 12.4, plannedKg: 185 },
-    { day: 'Thu', wasteKg: 8.9, plannedKg: 168 },
-    { day: 'Fri', wasteKg: 14.1, plannedKg: 190 },
-    { day: 'Sat', wasteKg: 7.5, plannedKg: 140 },
-    { day: 'Today', wasteKg: metrics?.totalFoodWastedKg ? Number(metrics.totalFoodWastedKg.toFixed(1)) : 8.4, plannedKg: 175 }
-  ];
+  const today = localDate(new Date());
+  const todayOperations = useMemo(() => {
+    const shifts = new Set<string>();
+    production.filter(record => record.date.slice(0, 10) === today).forEach(record => shifts.add(record.shift));
+    attendance.filter(record => record.date.slice(0, 10) === today).forEach(record => shifts.add(record.shift));
 
-  // Operations breakdown for today
-  const shiftOperations = [
-    {
-      meal: 'Breakfast',
-      expectedDiners: 180,
-      plannedProduction: '42.0 kg',
-      actualConsumption: '39.0 kg',
-      waste: '3.0 kg',
-      status: 'On track',
-      statusVariant: 'success' as const
-    },
-    {
-      meal: 'Lunch',
-      expectedDiners: 430,
-      plannedProduction: '98.0 kg',
-      actualConsumption: '92.0 kg',
-      waste: metrics?.totalFoodWastedKg ? `${metrics.totalFoodWastedKg.toFixed(1)} kg` : '6.0 kg',
-      status: 'Attention',
-      statusVariant: 'warning' as const
-    },
-    {
-      meal: 'Dinner',
-      expectedDiners: 390,
-      plannedProduction: '84.0 kg',
-      actualConsumption: '—',
-      waste: '—',
-      status: 'Upcoming',
-      statusVariant: 'neutral' as const
+    return [...shifts].map(shift => {
+      const shiftProduction = production.filter(
+        record => record.date.slice(0, 10) === today && record.shift.toLowerCase() === shift.toLowerCase()
+      );
+      const shiftAttendance = attendance.find(
+        record => record.date.slice(0, 10) === today && record.shift.toLowerCase() === shift.toLowerCase()
+      );
+      const shiftWaste = wasteRecords.filter(record =>
+        record.created_at.slice(0, 10) === today && record.service_shift.toLowerCase() === shift.toLowerCase()
+      );
+      const planned = shiftProduction.reduce((sum, record) => sum + Number(record.quantity_produced || 0), 0);
+      const consumed = shiftProduction.reduce((sum, record) => sum + Number(record.consumed_kg || 0), 0);
+      const waste = shiftWaste.reduce((sum, record) => sum + Number(record.user_confirmed_quantity || 0), 0);
+      const status = shiftProduction.length ? 'Recorded' : shiftAttendance ? 'Planned' : 'No production data';
+      return {
+        shift,
+        expectedDiners: shiftAttendance?.expected_people,
+        planned,
+        consumed,
+        waste,
+        status
+      };
+    }).sort((a, b) => {
+      const order = ['breakfast', 'lunch', 'dinner'];
+      return order.indexOf(a.shift.toLowerCase()) - order.indexOf(b.shift.toLowerCase());
+    });
+  }, [attendance, production, today, wasteRecords]);
+
+  const chartData = useMemo(() => {
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - period + 1);
+    const daily = new Map<string, { date: string; production: number; consumption: number; waste: number }>();
+    for (let day = new Date(fromDate); day <= new Date(); day.setDate(day.getDate() + 1)) {
+      const key = localDate(day);
+      daily.set(key, { date: key, production: 0, consumption: 0, waste: 0 });
     }
-  ];
+    production.forEach(record => {
+      const row = daily.get(record.date.slice(0, 10));
+      if (row) {
+        row.production += Number(record.quantity_produced || 0);
+        row.consumption += Number(record.consumed_kg || 0);
+      }
+    });
+    wasteRecords.forEach(record => {
+      const row = daily.get(record.created_at.slice(0, 10));
+      if (row) row.waste += Number(record.user_confirmed_quantity || 0);
+    });
+    return [...daily.values()].map(row => ({
+      ...row,
+      day: new Date(`${row.date}T12:00:00`).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric'
+      })
+    }));
+  }, [period, production, wasteRecords]);
 
-  // Category breakdown
-  const wasteByFoodType = [
-    { name: 'Rice', percentage: 38, kg: '3.2 kg' },
-    { name: 'Vegetables', percentage: 24, kg: '2.0 kg' },
-    { name: 'Dal', percentage: 17, kg: '1.4 kg' },
-    { name: 'Other', percentage: 21, kg: '1.8 kg' }
-  ];
+  const wasteSources = useMemo(() => {
+    const totals = new Map<string, number>();
+    wasteRecords.forEach(record => {
+      const name = record.food_name.toLowerCase();
+      const category = name.includes('rice') || name.includes('grain') || name.includes('roti')
+        ? 'Rice & grains'
+        : name.includes('veg') || name.includes('subzi')
+          ? 'Vegetables'
+          : name.includes('dal') || name.includes('lentil')
+            ? 'Dal & lentils'
+            : 'Other';
+      totals.set(category, (totals.get(category) || 0) + Number(record.user_confirmed_quantity || 0));
+    });
+    const sum = [...totals.values()].reduce((total, value) => total + value, 0);
+    return [...totals.entries()]
+      .map(([name, quantity]) => ({ name, quantity, percentage: sum > 0 ? quantity / sum * 100 : 0 }))
+      .sort((a, b) => b.quantity - a.quantity);
+  }, [wasteRecords]);
 
-  // Calculations for display
-  const foodWasteValue = metrics?.totalFoodWastedKg
-    ? `${metrics.totalFoodWastedKg.toFixed(1)} kg`
-    : '8.4 kg';
-
-  const wasteRateValue = metrics?.wasteRatePercentage
-    ? `${metrics.wasteRatePercentage.toFixed(1)}%`
-    : '6.8%';
-
-  const foodRedistributedValue = metrics?.totalFoodSavedKg
-    ? `${metrics.totalFoodSavedKg.toFixed(1)} kg`
-    : '26.2 kg';
+  const totalWaste = metrics?.totalFoodWastedKg;
+  const totalSaved = metrics?.totalFoodSavedKg;
+  const totalRedistributed = metrics?.redistributionKg;
+  const wasteRate = metrics?.wasteRatePercentage;
+  const dateLabel = new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 
   return (
-    <div className="space-y-6 max-w-[1400px]">
-      {/* Top Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#E5E5E2]">
+    <div className="max-w-[1400px] space-y-5">
+      <header className="flex flex-col justify-between gap-3 border-b border-[#e2e6e1] pb-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-xl lg:text-2xl font-semibold text-[#171717] tracking-tight">
-            Overview
-          </h1>
-          <p className="text-xs text-[#666666] mt-0.5">
-            Today · Main Campus Kitchen
-          </p>
+          <p className="text-xs font-medium text-[#68736a]">Main Campus Kitchen · {dateLabel}</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#202821]">Overview</h1>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onNavigate('forecast')}
-            className="px-3 py-1.5 rounded text-xs font-medium border border-[#E5E5E2] bg-white text-[#171717] hover:bg-[#F2F2EF] transition-colors"
-          >
-            Planning
+        <div className="flex gap-2">
+          <button onClick={() => onNavigate('forecast')} className="rounded-md border border-[#dfe4df] bg-white px-3 py-2 text-sm font-medium text-[#37433b] hover:bg-[#f3f5f2]">
+            View forecast
           </button>
-          <button
-            onClick={onOpenScanner}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-[#1E3A2B] hover:bg-[#162E22] text-white transition-colors"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            <span>Record waste</span>
+          <button onClick={onOpenScanner} className="inline-flex items-center gap-2 rounded-md bg-[#1f5c45] px-3 py-2 text-sm font-medium text-white hover:bg-[#194b39]">
+            <Camera className="h-4 w-4" /> Record waste
           </button>
         </div>
+      </header>
+
+      {error && (
+        <div role="alert" className="flex items-center justify-between rounded-md border border-[#e9c9a6] bg-[#fff8ee] px-3 py-2.5 text-sm text-[#765124]">
+          <span>{error} Try again when the service is available.</span>
+          <button onClick={() => void loadDashboard()} aria-label="Retry dashboard loading" className="rounded p-1 hover:bg-[#f7eddf]">
+            <RefreshCw className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <MetricBlock label="FOOD WASTE" value={isLoading ? '…' : totalWaste === undefined ? '—' : `${totalWaste.toFixed(1)} kg`} classificationTag={demoMode ? 'ESTIMATED' : 'VERIFIED'} />
+        <MetricBlock label="FOOD SAVED" value={isLoading ? '…' : totalSaved === undefined ? '—' : `${totalSaved.toFixed(1)} kg`} subtext="Recorded from completed handovers" />
+        <MetricBlock label="REDISTRIBUTED" value={isLoading ? '…' : totalRedistributed === undefined ? '—' : `${totalRedistributed.toFixed(1)} kg`} subtext="Active matched and dispatched lots" />
+        <MetricBlock label="WASTE RATE" value={isLoading ? '…' : wasteRate === undefined ? '—' : `${wasteRate.toFixed(1)}%`} subtext={metrics?.hasData ? 'Calculated from recorded quantities' : 'Requires production and waste records'} />
       </div>
 
-      {/* Compact Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricBlock
-          label="FOOD WASTE"
-          value={foodWasteValue}
-          trend={{ direction: 'down', text: '12% vs yesterday', isGood: true }}
-          classificationTag={demoMode ? 'ESTIMATED' : 'VERIFIED'}
-        />
-        <MetricBlock
-          label="WASTE RATE"
-          value={wasteRateValue}
-          badge={{ text: 'Target < 7.0%', variant: 'neutral' }}
-          trend={{ direction: 'neutral', text: 'On threshold', isGood: true }}
-        />
-        <MetricBlock
-          label="FOOD REDISTRIBUTED"
-          value={foodRedistributedValue}
-          subtext="65 meals equivalent"
-          badge={{ text: 'Dispatched', variant: 'success' }}
-        />
-        <MetricBlock
-          label="PRODUCTION EFFICIENCY"
-          value="91.2%"
-          badge={{ text: 'On track', variant: 'success' }}
-          subtext="430 of 480 planned"
-        />
-      </div>
-
-      {/* Primary Section: TODAY'S OPERATIONS Table */}
-      <div className="bg-white border border-[#E5E5E2] rounded-lg overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#E5E5E2] flex items-center justify-between">
+      <section className="overflow-hidden rounded-lg border border-[#e2e6e1] bg-white">
+        <div className="flex items-center justify-between border-b border-[#e8ebe7] px-4 py-3">
           <div>
-            <h2 className="text-xs font-semibold text-[#171717] uppercase tracking-wider">
-              Today's Operations
-            </h2>
-            <p className="text-xs text-[#666666]">
-              Real-time service shift progress and consumption tracking
-            </p>
+            <h2 className="text-base font-semibold text-[#202821]">Today’s operations</h2>
+            <p className="mt-0.5 text-xs text-[#68736a]">Service progress from logged attendance, production and scale records</p>
           </div>
-          <button
-            onClick={() => onNavigate('waste')}
-            className="text-xs text-[#1E3A2B] hover:underline font-medium"
-          >
-            View all shifts
-          </button>
+          <button onClick={() => onNavigate('history')} className="text-xs font-medium text-[#1f5c45] hover:underline">Waste history</button>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-[#E5E5E2] bg-[#F7F7F5] text-[11px] font-semibold text-[#666666] uppercase tracking-wider">
-                <th className="py-2.5 px-4">Meal</th>
-                <th className="py-2.5 px-4 text-right">Expected Diners</th>
-                <th className="py-2.5 px-4 text-right">Planned Production</th>
-                <th className="py-2.5 px-4 text-right">Actual Consumption</th>
-                <th className="py-2.5 px-4 text-right">Waste</th>
-                <th className="py-2.5 px-4 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#EAEAE7] text-xs">
-              {shiftOperations.map((row, i) => (
-                <tr key={i} className="hover:bg-[#FAFAFA] transition-colors">
-                  <td className="py-3 px-4 font-medium text-[#171717]">
-                    {row.meal}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-[#444444]">
-                    {row.expectedDiners}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-[#444444]">
-                    {row.plannedProduction}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-[#444444]">
-                    {row.actualConsumption}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono font-medium text-[#171717]">
-                    {row.waste}
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <Badge variant={row.statusVariant}>{row.status}</Badge>
-                  </td>
+        {isLoading ? (
+          <div className="space-y-3 p-4" aria-label="Loading operations" role="status">
+            <div className="h-8 animate-pulse rounded bg-[#f1f3f0]" />
+            <div className="h-8 animate-pulse rounded bg-[#f1f3f0]" />
+          </div>
+        ) : todayOperations.length === 0 ? (
+          <div className="px-4 py-10 text-center">
+            <p className="text-sm font-medium text-[#313b33]">No operations recorded today</p>
+            <p className="mt-1 text-xs text-[#68736a]">Record attendance and production to populate this table.</p>
+            <button onClick={() => onNavigate('production')} className="mt-3 text-sm font-medium text-[#1f5c45] hover:underline">Open production plan</button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left">
+              <thead className="bg-[#f6f7f5] text-[11px] font-semibold uppercase tracking-wide text-[#68736a]">
+                <tr>
+                  <th className="px-4 py-2.5">Meal</th>
+                  <th className="px-4 py-2.5 text-right">Expected diners</th>
+                  <th className="px-4 py-2.5 text-right">Planned production</th>
+                  <th className="px-4 py-2.5 text-right">Actual consumption</th>
+                  <th className="px-4 py-2.5 text-right">Waste</th>
+                  <th className="px-4 py-2.5 text-right">Status</th>
                 </tr>
+              </thead>
+              <tbody className="divide-y divide-[#edf0ec] text-sm">
+                {todayOperations.map(row => (
+                  <tr key={row.shift} className="hover:bg-[#fafbf9]">
+                    <td className="px-4 py-3 font-medium">{shiftLabel(row.shift)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{row.expectedDiners ?? '—'}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{row.planned ? `${row.planned.toFixed(1)} kg` : '—'}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{row.consumed ? `${row.consumed.toFixed(1)} kg` : '—'}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{row.waste ? `${row.waste.toFixed(1)} kg` : '—'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Badge variant={row.status === 'Recorded' ? 'success' : row.status === 'Planned' ? 'warning' : 'neutral'}>{row.status}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(300px,0.85fr)]">
+        <section className="rounded-lg border border-[#e2e6e1] bg-white p-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold">Waste vs production</h2>
+              <p className="mt-0.5 text-xs text-[#68736a]">Daily quantities from recorded kitchen data</p>
+            </div>
+            <div className="flex gap-1 rounded-md border border-[#e2e6e1] p-0.5" aria-label="Chart date range">
+              {([7, 30, 90] as const).map(days => (
+                <button
+                  key={days}
+                  onClick={() => setPeriod(days)}
+                  aria-pressed={period === days}
+                  className={`rounded px-2 py-1 text-xs ${period === days ? 'bg-[#edf2ee] font-medium text-[#1f5c45]' : 'text-[#667168] hover:bg-[#f5f6f4]'}`}
+                >
+                  {days}D
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Second Section: Two-Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left: Food waste trend */}
-        <div className="bg-white border border-[#E5E5E2] rounded-lg p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="text-xs font-semibold text-[#171717] uppercase tracking-wider">
-                Food Waste Trend
-              </h3>
-              <p className="text-xs text-[#666666]">Daily recorded plate & batch waste (kg)</p>
             </div>
-            <span className="text-xs font-mono text-[#666666]">Past 7 days</span>
           </div>
-
-          <div className="h-52 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={wasteTrendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="2 2" stroke="#EAEAE7" vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  stroke="#888888"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={{ stroke: '#E5E5E2' }}
-                />
-                <YAxis
-                  stroke="#888888"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={{ stroke: '#E5E5E2' }}
-                  unit="kg"
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#171717',
-                    border: 'none',
-                    borderRadius: '4px',
-                    color: '#ffffff',
-                    fontSize: '11px',
-                    padding: '6px 10px'
-                  }}
-                  formatter={(value: any) => [`${value} kg`, 'Waste']}
-                  labelStyle={{ color: '#aaaaaa', marginBottom: '2px' }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="wasteKg"
-                  stroke="#1E3A2B"
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: '#1E3A2B' }}
-                  activeDot={{ r: 5, fill: '#1E3A2B' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Right: Waste by food type (Horizontal bars) */}
-        <div className="bg-white border border-[#E5E5E2] rounded-lg p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="text-xs font-semibold text-[#171717] uppercase tracking-wider">
-                Waste by Food Type
-              </h3>
-              <p className="text-xs text-[#666666]">Proportional distribution of current shift waste</p>
+          {isLoading ? (
+            <div className="h-[260px] animate-pulse rounded bg-[#f1f3f0]" role="status" aria-label="Loading chart" />
+          ) : production.length === 0 && wasteRecords.length === 0 ? (
+            <div className="grid h-[260px] place-items-center text-center">
+              <div>
+                <p className="text-sm font-medium">Not enough recorded data to chart</p>
+                <p className="mt-1 text-xs text-[#68736a]">Production and verified waste entries will appear here.</p>
+              </div>
             </div>
-            <span className="text-xs font-mono text-[#666666]">Current Shift</span>
-          </div>
+          ) : (
+            <>
+              <div className="h-[260px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 8, right: 8, left: -22, bottom: 0 }}>
+                    <CartesianGrid stroke="#edf0ec" vertical={false} />
+                    <XAxis dataKey="day" tickLine={false} axisLine={false} fontSize={11} />
+                    <YAxis tickLine={false} axisLine={false} fontSize={11} unit=" kg" />
+                    <Tooltip formatter={(value: number) => [`${value.toFixed(1)} kg`]} />
+                    <Line type="monotone" dataKey="production" name="Production" stroke="#76867a" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="consumption" name="Consumption" stroke="#1f5c45" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="waste" name="Verified waste" stroke="#c58c42" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-4 text-xs text-[#68736a]">
+                <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#76867a]" />Production</span>
+                <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#1f5c45]" />Consumption</span>
+                <span><i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#c58c42]" />Verified waste</span>
+              </div>
+            </>
+          )}
+        </section>
 
-          <div className="space-y-3.5 py-1">
-            {wasteByFoodType.map(item => (
-              <div key={item.name}>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="font-medium text-[#171717]">{item.name}</span>
-                  <div className="flex items-center gap-2 font-mono text-[#666666]">
-                    <span>{item.percentage}%</span>
-                    <span>·</span>
-                    <span>{item.kg}</span>
+        <section className="rounded-lg border border-[#e2e6e1] bg-white p-4">
+          <div>
+            <h2 className="text-base font-semibold">Top waste sources</h2>
+            <p className="mt-0.5 text-xs text-[#68736a]">Grouped from recorded food names</p>
+          </div>
+          {isLoading ? (
+            <div className="mt-5 space-y-4" role="status" aria-label="Loading waste sources">
+              {[1, 2, 3].map(item => <div key={item} className="h-8 animate-pulse rounded bg-[#f1f3f0]" />)}
+            </div>
+          ) : wasteSources.length === 0 ? (
+            <div className="grid min-h-[230px] place-items-center px-4 text-center">
+              <p className="text-sm text-[#68736a]">No verified waste sources to summarize yet.</p>
+            </div>
+          ) : (
+            <div className="mt-5 space-y-5">
+              {wasteSources.map(source => (
+                <div key={source.name}>
+                  <div className="mb-1.5 flex items-center justify-between text-sm">
+                    <span className="font-medium">{source.name}</span>
+                    <span className="tabular-nums text-[#657168]">{source.quantity.toFixed(1)} kg · {source.percentage.toFixed(0)}%</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-sm bg-[#edf0ec]" role="meter" aria-label={`${source.name} waste share`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(source.percentage)}>
+                    <div className="h-full bg-[#587963]" style={{ width: `${source.percentage}%` }} />
                   </div>
                 </div>
-                <div className="w-full bg-[#EAEAE7] h-2 rounded-sm overflow-hidden">
-                  <div
-                    className="bg-[#1E3A2B] h-full rounded-sm"
-                    style={{ width: `${item.percentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-3 border-t border-[#E5E5E2] flex items-center justify-between text-xs text-[#666666]">
-            <span>Primary contributor: Steamed Basmati Rice</span>
-            <button
-              onClick={() => onNavigate('forecast')}
-              className="text-[#1E3A2B] font-medium hover:underline flex items-center gap-1"
-            >
-              Adjust portion target
-              <ArrowUpRight className="w-3 h-3" />
+              ))}
+            </div>
+          )}
+          <div className="mt-6 border-t border-[#edf0ec] pt-3">
+            <button onClick={() => onNavigate('history')} className="inline-flex items-center gap-1 text-sm font-medium text-[#1f5c45] hover:underline">
+              Review waste records <ArrowRight className="h-4 w-4" />
             </button>
           </div>
-        </div>
+        </section>
       </div>
+
+      <section className="flex flex-col gap-3 rounded-lg border border-[#e2e6e1] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold">Tomorrow’s production recommendation</h2>
+            <Badge variant="predicted">Predicted</Badge>
+          </div>
+          <p className="mt-1 text-sm text-[#68736a]">
+            Recommendations appear when a forecast can be generated from the selected data mode and attendance inputs.
+          </p>
+        </div>
+        <button onClick={() => onNavigate('forecast')} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-[#dfe4df] px-3 py-2 text-sm font-medium hover:bg-[#f3f5f2]">
+          Open forecast <ArrowRight className="h-4 w-4" />
+        </button>
+      </section>
     </div>
   );
 };

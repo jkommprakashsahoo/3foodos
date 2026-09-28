@@ -1,20 +1,11 @@
 // FoodWise AI: Institutional Kitchen Waste & Redistribution Software
 // Clean, dense operational interface designed for professional institutional kitchens
 
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Header } from './components/Header.tsx';
 import { Navigation, NavTab } from './components/Navigation.tsx';
-import { DashboardView } from './components/DashboardView.tsx';
-import { ForecastView } from './components/ForecastView.tsx';
-import { SurplusView } from './components/SurplusView.tsx';
-import { RedistributionView } from './components/RedistributionView.tsx';
-import { AnalyticsView } from './components/AnalyticsView.tsx';
-import { WasteHistoryView } from './components/WasteHistoryView.tsx';
-import { ReceiverPortalView } from './components/ReceiverPortalView.tsx';
-import { SettingsView } from './components/SettingsView.tsx';
-import { CameraScannerModal } from './components/CameraScannerModal.tsx';
-import { ConfirmWasteModal } from './components/ConfirmWasteModal.tsx';
-import { AuthModal, AuthUser } from './components/AuthModal.tsx';
+import { LoginView } from './components/LoginView.tsx';
+import type { AuthUser } from './components/AuthModal.tsx';
 import {
   DatabaseTelemetry,
   SurplusListing,
@@ -23,18 +14,32 @@ import {
   WasteScanResult
 } from './types.ts';
 import { WifiOff, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { getCurrentUser, signOut } from './services/auth.ts';
+import { ApiError, apiRequest } from './services/apiClient.ts';
+import { getTelemetry } from './services/dashboard.ts';
+import { listSurplus } from './services/surplus.ts';
+import { listWasteRecords } from './services/waste.ts';
+
+const DashboardView = lazy(() => import('./components/DashboardView.tsx').then(module => ({ default: module.DashboardView })));
+const ForecastView = lazy(() => import('./components/ForecastView.tsx').then(module => ({ default: module.ForecastView })));
+const SurplusView = lazy(() => import('./components/SurplusView.tsx').then(module => ({ default: module.SurplusView })));
+const RedistributionView = lazy(() => import('./components/RedistributionView.tsx').then(module => ({ default: module.RedistributionView })));
+const AnalyticsView = lazy(() => import('./components/AnalyticsView.tsx').then(module => ({ default: module.AnalyticsView })));
+const WasteHistoryView = lazy(() => import('./components/WasteHistoryView.tsx').then(module => ({ default: module.WasteHistoryView })));
+const ReceiverPortalView = lazy(() => import('./components/ReceiverPortalView.tsx').then(module => ({ default: module.ReceiverPortalView })));
+const SettingsView = lazy(() => import('./components/SettingsView.tsx').then(module => ({ default: module.SettingsView })));
+const ProductionView = lazy(() => import('./components/ProductionView.tsx').then(module => ({ default: module.ProductionView })));
+const CameraScannerModal = lazy(() => import('./components/CameraScannerModal.tsx').then(module => ({ default: module.CameraScannerModal })));
+const ConfirmWasteModal = lazy(() => import('./components/ConfirmWasteModal.tsx').then(module => ({ default: module.ConfirmWasteModal })));
+const AuthModal = lazy(() => import('./components/AuthModal.tsx').then(module => ({ default: module.AuthModal })));
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [userRole, setUserRole] = useState<UserRole>('Kitchen Manager');
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>({
-    id: 'usr-arjun-01',
-    name: 'Arjun Rao',
-    email: 'manager@foodwise.org',
-    role: 'Kitchen Manager',
-    organization_id: 'org-central-04'
-  });
-  const [demoMode, setDemoMode] = useState<boolean>(true);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [demoMode, setDemoMode] = useState<boolean>(() => localStorage.getItem("foodwise_demo_mode") === "true");
 
   // Modals
   const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
@@ -51,6 +56,8 @@ export default function App() {
   const [surplusListings, setSurplusListings] = useState<SurplusListing[]>([]);
   const [databaseTelemetry, setDatabaseTelemetry] = useState<DatabaseTelemetry | null>(null);
   const [geminiConfigured, setGeminiConfigured] = useState<boolean>(false);
+  const [appDataError, setAppDataError] = useState<string | null>(null);
+  const [wasteSearchTerm, setWasteSearchTerm] = useState('');
   const [preloadSurplusItem, setPreloadSurplusItem] = useState<{
     name: string;
     quantity: number;
@@ -64,51 +71,55 @@ export default function App() {
 
   // Load telemetry & app data
   const refreshAppData = async () => {
-    try {
-      const [telemetryRes, wasteRes, surplusRes] = await Promise.all([
-        fetch('/api/telemetry'),
-        fetch(`/api/waste-records?includeDemo=${demoMode}`),
-        fetch('/api/surplus')
-      ]);
+    const results = await Promise.allSettled([
+      getTelemetry(),
+      listWasteRecords(demoMode),
+      listSurplus(demoMode)
+    ]);
+    const failures: string[] = [];
 
-      const teleJson = await telemetryRes.json();
-      const wasteJson = await wasteRes.json();
-      const surplusJson = await surplusRes.json();
+    if (results[0].status === 'fulfilled') {
+      setDatabaseTelemetry(results[0].value.database);
+      setGeminiConfigured(results[0].value.gemini.configured);
+    } else failures.push('system status');
+    if (results[1].status === 'fulfilled') setWasteRecords(results[1].value.records);
+    else failures.push('waste records');
+    if (results[2].status === 'fulfilled') setSurplusListings(results[2].value.surplus);
+    else failures.push('surplus listings');
 
-      if (teleJson.success) {
-        setDatabaseTelemetry(teleJson.database);
-        setGeminiConfigured(teleJson.gemini?.configured ?? false);
-      }
-
-      if (wasteJson.success) {
-        setWasteRecords(wasteJson.records);
-      }
-
-      if (surplusJson.success) {
-        setSurplusListings(surplusJson.surplus);
-      }
-    } catch (err) {
-      console.error('[Initial data load error]', err);
-    }
+    setAppDataError(
+      failures.length ? `Unable to load ${failures.join(', ')}. Check the connection and retry.` : null
+    );
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('foodwise_auth_token');
-    if (token) {
-      fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(r => r.json())
-        .then(data => {
-          if (data.success && data.user) {
-            setCurrentUser(data.user);
-            setUserRole(data.user.role);
-          }
-        })
-        .catch(() => {});
-    }
-    refreshAppData();
-  }, [demoMode]);
+    const restoreSession = async () => {
+      if (!localStorage.getItem('foodwise_auth_token')) {
+        setIsCheckingAuth(false);
+        return;
+      }
+      try {
+        const result = await getCurrentUser();
+        setCurrentUser(result.user);
+        setUserRole(result.user.role);
+      } catch (error) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          signOut();
+        } else {
+          setAuthError(error instanceof Error ? error.message : 'Unable to restore your session.');
+        }
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+
+    void restoreSession();
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('foodwise_demo_mode', String(demoMode));
+    if (currentUser) void refreshAppData();
+  }, [currentUser, demoMode]);
 
   // Offline detection and sync handler
   useEffect(() => {
@@ -123,8 +134,10 @@ export default function App() {
 
     try {
       const queue = JSON.parse(localStorage.getItem('foodwise_offline_queue') || '[]');
-      setOfflineQueueCount(queue.length);
-    } catch {}
+      if (Array.isArray(queue)) setOfflineQueueCount(queue.length);
+    } catch {
+      localStorage.removeItem('foodwise_offline_queue');
+    }
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -137,12 +150,12 @@ export default function App() {
       const queueStr = localStorage.getItem('foodwise_offline_queue');
       if (!queueStr) return;
       const queue = JSON.parse(queueStr);
+      if (!Array.isArray(queue)) throw new Error('Offline queue data is invalid.');
       if (queue.length === 0) return;
 
       for (const item of queue) {
-        await fetch('/api/waste-records', {
+        await apiRequest('/api/waste-records', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(item)
         });
       }
@@ -154,6 +167,7 @@ export default function App() {
       refreshAppData();
     } catch (err) {
       console.error('[Offline queue flush error]', err);
+      setSyncMessage('Some offline records could not be synchronized. They remain queued for retry.');
     }
   };
 
@@ -169,6 +183,8 @@ export default function App() {
   const handleSelectTab = (tab: NavTab) => {
     if (tab === 'scan') {
       setIsScannerOpen(true);
+    } else if (tab === 'waste') {
+      setActiveTab('history');
     } else {
       setActiveTab(tab);
     }
@@ -201,8 +217,29 @@ export default function App() {
     s => s.status === 'available' || s.status === 'matched'
   ).length;
 
+  if (isCheckingAuth) {
+    return (
+      <main className="min-h-screen grid place-items-center bg-[#f8f8f6]">
+        <p className="text-sm text-[#66736b]" role="status">Checking your FoodWise session…</p>
+      </main>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <LoginView
+        initialError={authError}
+        onSuccess={user => {
+          setAuthError(null);
+          setCurrentUser(user);
+          handleRoleChange(user.role);
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#f4f7f3] text-[#15231b] flex flex-col antialiased">
+    <div className="min-h-screen bg-[#f8f8f6] text-[#202821] flex flex-col antialiased">
       {/* Top Header */}
       <Header
         activeTab={activeTab}
@@ -214,6 +251,11 @@ export default function App() {
         demoMode={demoMode}
         onToggleDemoMode={() => setDemoMode(!demoMode)}
         onOpenSettings={() => setActiveTab('settings')}
+        onOpenScanner={() => setIsScannerOpen(true)}
+        onSearch={term => {
+          setWasteSearchTerm(term);
+          setActiveTab('history');
+        }}
       />
 
       {/* Offline Alert Banner */}
@@ -259,7 +301,13 @@ export default function App() {
 
         {/* Fluid Scrollable Content */}
         <main className="relative flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 max-w-[1500px] w-full pb-24 lg:pb-8">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top_right,rgba(82,183,136,0.14),transparent_58%)]" />
+          {appDataError && (
+            <div role="alert" className="mb-4 flex items-center justify-between rounded-md border border-[#e9c9a6] bg-[#fff8ee] px-3 py-2.5 text-sm text-[#765124]">
+              <span>{appDataError}</span>
+              <button onClick={() => void refreshAppData()} className="font-medium underline underline-offset-2">Retry</button>
+            </div>
+          )}
+          <Suspense fallback={<div className="grid min-h-64 place-items-center text-sm text-[#68736a]" role="status">Loading this workspace…</div>}>
           {activeTab === 'dashboard' && (
             <DashboardView
               onNavigate={tab => handleSelectTab(tab)}
@@ -270,27 +318,33 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'forecast' && <ForecastView />}
+          {activeTab === 'forecast' && <ForecastView demoMode={demoMode} />}
 
           {activeTab === 'history' && (
-            <WasteHistoryView onScanNewTray={() => setIsScannerOpen(true)} />
+            <WasteHistoryView
+              onScanNewTray={() => setIsScannerOpen(true)}
+              demoMode={demoMode}
+              initialSearch={wasteSearchTerm}
+            />
           )}
+          {activeTab === 'production' && <ProductionView demoMode={demoMode} />}
 
           {activeTab === 'surplus' && (
             <SurplusView
               onFindReceiver={handleFindReceiverFromSurplus}
               initialPreloadItem={preloadSurplusItem}
               onClearPreloadItem={() => setPreloadSurplusItem(null)}
+              demoMode={demoMode}
             />
           )}
 
           {activeTab === 'redistribution' && (
-            <RedistributionView selectedInitialId={selectedSurplusForDispatch} />
+            <RedistributionView selectedInitialId={selectedSurplusForDispatch} demoMode={demoMode} />
           )}
 
-          {activeTab === 'analytics' && <AnalyticsView />}
+          {activeTab === 'analytics' && <AnalyticsView demoMode={demoMode} />}
 
-          {activeTab === 'receiver' && <ReceiverPortalView />}
+          {activeTab === 'receiver' && <ReceiverPortalView demoMode={demoMode} />}
 
           {activeTab === 'settings' && (
             <SettingsView
@@ -301,29 +355,37 @@ export default function App() {
               onRefreshStatus={refreshAppData}
             />
           )}
+          {['operations', 'organizations', 'users', 'help'].includes(activeTab) && (
+            <section className="max-w-2xl rounded-lg border border-[#e2e6e1] bg-white p-5">
+              <h1 className="text-lg font-semibold">{activeTab === 'help' ? 'Help' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h1>
+              <p className="mt-2 text-sm leading-6 text-[#68736a]">This workspace area is not connected to an operational API yet. No organization or user records are being simulated.</p>
+            </section>
+          )}
+          </Suspense>
         </main>
       </div>
 
       {/* Camera Scanner Modal */}
-      <CameraScannerModal
+      {isScannerOpen && <Suspense fallback={null}><CameraScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onAnalysisComplete={handleAnalysisComplete}
         geminiConfigured={geminiConfigured}
-      />
+        demoMode={demoMode}
+      /></Suspense>}
 
       {/* Mandatory Human Scale Weight Confirmation Modal */}
-      <ConfirmWasteModal
+      {isConfirmOpen && <Suspense fallback={null}><ConfirmWasteModal
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         scanResult={scanResult}
         capturedImage={scannedImage}
         onRecordSaved={handleRecordSaved}
         onOpenSurplusWithItem={handleOpenSurplusWithItem}
-      />
+      /></Suspense>}
 
       {/* Authentication & Staff Role Modal */}
-      <AuthModal
+      {isAuthOpen && <Suspense fallback={null}><AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         currentUser={currentUser}
@@ -333,10 +395,10 @@ export default function App() {
           refreshAppData();
         }}
         onLogout={() => {
+          signOut();
           setCurrentUser(null);
-          refreshAppData();
         }}
-      />
+      /></Suspense>}
     </div>
   );
 }

@@ -2,15 +2,7 @@
 // Enterprise administration: Database infrastructure, scale station settings, verified data boundaries
 
 import React, { useState } from 'react';
-import {
-  Database,
-  RefreshCw,
-  Trash2,
-  CheckCircle2,
-  Server,
-  Scale,
-  Sliders
-} from 'lucide-react';
+import { Database, RefreshCw, Trash2, CheckCircle2, Server } from 'lucide-react';
 import { DatabaseTelemetry } from '../types.ts';
 import { Badge } from './ui/Badge.tsx';
 
@@ -31,18 +23,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const handleResetData = async () => {
     if (!confirm('Clear all user-confirmed entries and reset database to pristine baseline?')) return;
     setIsResetting(true);
+    setResetError(null);
     try {
       const res = await fetch('/api/reset-data', { method: 'POST' });
       const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Unable to reset records.');
       setResetMessage(json.message || 'Records successfully reset.');
-      onRefreshStatus();
+      await onRefreshStatus();
       setTimeout(() => setResetMessage(null), 4000);
     } catch (err) {
-      console.error('[Reset Error]', err);
+      setResetError(err instanceof Error ? err.message : 'Unable to reset records.');
     } finally {
       setIsResetting(false);
     }
@@ -76,6 +71,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <span>{resetMessage}</span>
         </div>
       )}
+      {resetError && <div role="alert" className="rounded-md border border-[#efc7c1] bg-[#fff5f3] px-3 py-2.5 text-sm text-[#87372b]">{resetError}</div>}
+
+      <section className="flex flex-col gap-3 rounded-lg border border-[#e2e6e1] bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-[#202821]">Demo mode</h2>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-[#68736a]">
+            {demoMode ? 'Demo data is being displayed alongside verified records.' : 'Only verified operational records are requested.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={demoMode}
+          onClick={onToggleDemoMode}
+          className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#315a3a] ${demoMode ? 'border-[#315a3a] bg-[#315a3a]' : 'border-[#bcc5bc] bg-[#e7ebe7]'}`}
+        >
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${demoMode ? 'translate-x-6' : 'translate-x-0.5'}`} />
+        </button>
+      </section>
 
       {/* Database Infrastructure Status */}
       <div className="bg-white border border-[#E5E5E2] rounded-lg p-5 space-y-4">
@@ -87,7 +101,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </h2>
           </div>
           <Badge variant={databaseTelemetry?.connected ? 'success' : 'neutral'}>
-            {databaseTelemetry?.connected ? 'ONLINE' : 'LOCAL CACHE'}
+            {databaseTelemetry ? (databaseTelemetry.connected ? 'ONLINE' : 'LOCAL CACHE') : 'STATUS UNAVAILABLE'}
           </Badge>
         </div>
 
@@ -127,43 +141,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </h2>
           </div>
           <Badge variant={geminiConfigured ? 'success' : 'neutral'}>
-            {geminiConfigured ? 'CONNECTED' : 'SIMULATION MODE'}
+            {geminiConfigured ? 'CONNECTED' : 'NOT CONFIGURED'}
           </Badge>
         </div>
 
         <p className="text-xs text-[#555555] leading-relaxed">
           Gemini vision powers server-side tray classification and food residue recognition through a protected API proxy. Physical scale inputs always override vision approximations; the model never writes a weight directly to the registry.
         </p>
-      </div>
-
-      {/* Kitchen Station Configuration */}
-      <div className="bg-white border border-[#E5E5E2] rounded-lg p-5 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-[#E5E5E2]">
-          <div className="flex items-center gap-2">
-            <Scale className="w-4 h-4 text-[#1E3A2B]" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[#171717]">
-              Hardware Scale & Camera Stations
-            </h2>
-          </div>
-        </div>
-
-        <div className="space-y-2 text-xs">
-          <div className="flex items-center justify-between p-2.5 rounded bg-[#F7F7F5] border border-[#E5E5E2]">
-            <div>
-              <p className="font-medium text-[#171717]">Station #1 — Prep Line Scale</p>
-              <p className="text-[11px] text-[#666666]">Mettler Toledo IND231 · COM3</p>
-            </div>
-            <Badge variant="verified">CALIBRATED</Badge>
-          </div>
-
-          <div className="flex items-center justify-between p-2.5 rounded bg-[#F7F7F5] border border-[#E5E5E2]">
-            <div>
-              <p className="font-medium text-[#171717]">Station #2 — Dish Return Conveyor Scale</p>
-              <p className="text-[11px] text-[#666666]">Avery Weigh-Tronix ZK840 · IP 192.168.1.144</p>
-            </div>
-            <Badge variant="verified">CALIBRATED</Badge>
-          </div>
-        </div>
       </div>
 
       {/* Data Maintenance & Sandbox Reset */}

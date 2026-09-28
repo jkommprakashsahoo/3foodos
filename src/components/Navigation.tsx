@@ -76,7 +76,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   return (
     <>
       {/* Desktop Left Sidebar: 220–240px */}
-      <aside className="hidden lg:flex flex-col w-[248px] shrink-0 bg-white/60 backdrop-blur-xl border-r border-[#dfe8e0] min-h-[calc(100vh-64px)] select-none">
+      <aside aria-label="Main navigation" className="hidden min-h-[calc(100vh-64px)] w-[232px] shrink-0 select-none flex-col border-r border-[#e2e6e1] bg-white lg:flex">
         {/* Navigation list */}
         <div className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
           {/* Primary Operations Section */}
@@ -91,9 +91,10 @@ export const Navigation: React.FC<NavigationProps> = ({
                 <button
                   key={item.id}
                   onClick={() => onSelectTab(item.id)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-[13px] transition-colors ${
                     isActive
-                      ? 'bg-[#e5f2e9] text-[#174b36] font-semibold shadow-sm'
+                      ? 'bg-[#edf4ee] text-[#174b36] font-semibold'
                       : 'text-[#66736b] hover:bg-[#edf5ef] hover:text-[#15231b]'
                   }`}
                 >
@@ -124,9 +125,10 @@ export const Navigation: React.FC<NavigationProps> = ({
                   <button
                     key={item.id}
                     onClick={() => onSelectTab(item.id)}
+                    aria-current={isActive ? 'page' : undefined}
                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-[13px] transition-colors ${
                       isActive
-                        ? 'bg-[#e5f2e9] text-[#174b36] font-semibold shadow-sm'
+                      ? 'bg-[#edf4ee] text-[#174b36] font-semibold'
                         : 'text-[#66736b] hover:bg-[#edf5ef] hover:text-[#15231b]'
                     }`}
                   >
@@ -145,6 +147,7 @@ export const Navigation: React.FC<NavigationProps> = ({
         <div className="p-3 border-t border-[#E5E5E2] space-y-0.5 bg-[#F7F7F5]">
           <button
             onClick={() => onSelectTab('settings')}
+            aria-current={activeTab === 'settings' ? 'page' : undefined}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] transition-colors ${
               activeTab === 'settings'
                 ? 'bg-[#EAEAE7] text-[#171717] font-medium'
@@ -156,6 +159,7 @@ export const Navigation: React.FC<NavigationProps> = ({
           </button>
           <button
             onClick={() => onSelectTab('help')}
+            aria-current={activeTab === 'help' ? 'page' : undefined}
             className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[13px] transition-colors ${
               activeTab === 'help'
                 ? 'bg-[#EAEAE7] text-[#171717] font-medium'
@@ -169,7 +173,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       </aside>
 
       {/* Mobile Bottom Bar: 5 core tabs */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-[#dfe8e0] px-2 py-2 flex items-center justify-around shadow-[0_-8px_24px_rgba(31,92,69,0.08)]">
+      <nav aria-label="Mobile navigation" className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#e2e6e1] px-2 py-2 flex items-center justify-around">
         {[
           { id: 'dashboard' as NavTab, label: 'Overview', icon: LayoutDashboard },
           { id: 'waste' as NavTab, label: 'Waste', icon: Trash2 },
@@ -185,6 +189,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button
               key={item.id}
               onClick={() => onSelectTab(item.id)}
+              aria-current={isActive ? 'page' : undefined}
               className={`flex flex-col items-center gap-1 py-1 px-2 rounded text-[11px] font-medium transition-colors ${
                 isActive ? 'text-[#1E3A2B] font-semibold' : 'text-[#777777]'
               }`}
