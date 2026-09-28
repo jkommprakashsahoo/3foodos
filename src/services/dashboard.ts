@@ -9,7 +9,7 @@ export interface DashboardMetrics {
   totalFoodSavedKg: number;
   redistributionBatchesCount: number;
   redistributionKg: number;
-  wasteRatePercentage: number;
+  wasteRatePercentage: number | null;
   totalVerifiedWasteLogs: number;
   recentHandovers: Array<{
     lot: string;

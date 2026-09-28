@@ -168,7 +168,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="max-w-[1400px] space-y-5">
       <header className="flex flex-col justify-between gap-3 border-b border-[#e2e6e1] pb-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-medium text-[#68736a]">Main Campus Kitchen · {dateLabel}</p>
+          <p className="text-xs font-medium text-[#68736a]">Assigned kitchen · {dateLabel}</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#202821]">Overview</h1>
         </div>
         <div className="flex gap-2">
@@ -194,7 +194,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <MetricBlock label="FOOD WASTE" value={isLoading ? '…' : totalWaste === undefined ? '—' : `${totalWaste.toFixed(1)} kg`} classificationTag={demoMode ? 'ESTIMATED' : 'VERIFIED'} />
         <MetricBlock label="FOOD SAVED" value={isLoading ? '…' : totalSaved === undefined ? '—' : `${totalSaved.toFixed(1)} kg`} subtext="Recorded from completed handovers" />
         <MetricBlock label="REDISTRIBUTED" value={isLoading ? '…' : totalRedistributed === undefined ? '—' : `${totalRedistributed.toFixed(1)} kg`} subtext="Active matched and dispatched lots" />
-        <MetricBlock label="WASTE RATE" value={isLoading ? '…' : wasteRate === undefined ? '—' : `${wasteRate.toFixed(1)}%`} subtext={metrics?.hasData ? 'Calculated from recorded quantities' : 'Requires production and waste records'} />
+        <MetricBlock
+          label="WASTE RATE"
+          value={isLoading ? '…' : wasteRate == null ? '—' : `${wasteRate.toFixed(1)}%`}
+          subtext={wasteRate == null ? 'Requires recorded production' : 'Calculated from recorded quantities'}
+        />
       </div>
 
       <section className="overflow-hidden rounded-lg border border-[#e2e6e1] bg-white">
@@ -211,7 +215,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="h-8 animate-pulse rounded bg-[#f1f3f0]" />
           </div>
         ) : todayOperations.length === 0 ? (
-          <div className="px-4 py-10 text-center">
+          <div className="px-4 py-6 text-center">
             <p className="text-sm font-medium text-[#313b33]">No operations recorded today</p>
             <p className="mt-1 text-xs text-[#68736a]">Record attendance and production to populate this table.</p>
             <button onClick={() => onNavigate('production')} className="mt-3 text-sm font-medium text-[#1f5c45] hover:underline">Open production plan</button>

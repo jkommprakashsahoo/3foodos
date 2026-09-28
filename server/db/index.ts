@@ -883,7 +883,7 @@ export interface RealDashboardMetrics {
   totalFoodSavedKg: number;
   redistributionBatchesCount: number;
   redistributionKg: number;
-  wasteRatePercentage: number;
+  wasteRatePercentage: number | null;
   totalVerifiedWasteLogs: number;
   recentHandovers: Array<{
     lot: string;
@@ -926,11 +926,9 @@ export async function getDashboardMetrics(includeDemo: boolean = true, orgId?: s
   const redistributionKg = activeSurplus.reduce((sum, s) => sum + (Number(s.quantity) || 0), 0);
 
   // Real waste rate: wasted / produced * 100
-  let wasteRatePercentage = 0;
+  let wasteRatePercentage: number | null = null;
   if (totalFoodProducedKg > 0) {
     wasteRatePercentage = Math.round((totalFoodWastedKg / totalFoodProducedKg) * 1000) / 10;
-  } else if (totalFoodWastedKg > 0) {
-    wasteRatePercentage = 100;
   }
 
   // Format real recent handovers

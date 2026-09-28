@@ -57,7 +57,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
     setCameraError(null);
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraError('Camera not supported in this frame. Please use image upload or test sample trays.');
+        setCameraError(`Camera not supported in this frame. Please use image upload${demoMode ? ' or a demo test tray' : ''}.`);
         return;
       }
 
@@ -74,7 +74,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
         videoRef.current.srcObject = mediaStream;
       }
     } catch (err: any) {
-      setCameraError('Live camera not available. Use file upload or test tray samples below.');
+      setCameraError(`Live camera not available. Use file upload${demoMode ? ' or a demo test tray' : ''}.`);
     }
   };
 
@@ -203,7 +203,7 @@ export const CameraScannerModal: React.FC<CameraScannerModalProps> = ({
           </div>
         )}
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+        <div className="flex flex-1 flex-col space-y-4 overflow-y-auto p-4 sm:p-5">
           {analysis && (
           <section className="rounded-md border border-[#e2e6e1] bg-white p-3" aria-live="polite">
             <div className="flex items-start justify-between gap-3">

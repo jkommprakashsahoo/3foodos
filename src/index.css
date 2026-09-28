@@ -74,6 +74,155 @@
   }
 }
 
+ .fw-app {
+    --bg-main: #0d120f;
+    --surface: #151c18;
+    --surface-muted: #101612;
+    --text-primary: #e4eae5;
+    --text-secondary: #a0aca3;
+    --border-color: #2a352e;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    color-scheme: dark;
+  }
+
+ .fw-app [class~="bg-white"] {
+    background-color: var(--surface);
+  }
+
+ .fw-app [class*="bg-[#f8f8f6]"],
+  .fw-app [class*="bg-[#F7F7F5]"],
+  .fw-app [class*="bg-[#f7f8f6]"],
+  .fw-app [class*="bg-[#f6f7f5]"],
+  .fw-app [class*="bg-[#FAFAFA]"],
+  .fw-app [class*="bg-[#fafbf9]"],
+  .fw-app [class*="bg-[#f3f5f2]"],
+  .fw-app [class*="bg-[#F2F2EF]"],
+  .fw-app [class*="bg-[#F0F0EE]"],
+  .fw-app [class*="bg-[#f1f3f0]"],
+  .fw-app [class*="bg-[#EAEAE7]"] {
+    background-color: var(--surface-muted);
+  }
+
+  .fw-app [class*="bg-[#edf4ee]"],
+  .fw-app [class*="bg-[#eaf0ea]"],
+  .fw-app [class*="bg-[#EBF5EE]"],
+  .fw-app [class*="bg-[#f1f7f2]"],
+  .fw-app [class*="bg-[#F2F8F4]"] {
+    background-color: #1b3023;
+  }
+
+  .fw-app [class*="bg-[#FEF7EC]"],
+  .fw-app [class*="bg-[#fff8ee]"],
+  .fw-app [class*="bg-[#fffaf0]"],
+  .fw-app [class*="bg-[#FFFBEB]"],
+  .fw-app [class*="bg-[#f7f3e9]"] {
+    background-color: #342b1c;
+  }
+
+  .fw-app [class*="bg-[#FDF2F2]"],
+  .fw-app [class*="bg-[#fff5f3]"] {
+    background-color: #38211e;
+  }
+
+ .fw-app [class*="border-[#e2e6e1]"],
+  .fw-app [class*="border-[#E5E5E2]"],
+  .fw-app [class*="border-[#e8ebe7]"],
+  .fw-app [class*="border-[#edf0ec]"],
+  .fw-app [class*="border-[#dfe4df]"],
+  .fw-app [class*="border-[#e0e5df]"],
+  .fw-app [class*="border-[#EAEAE7]"],
+  .fw-app [class*="border-[#d8ded8]"],
+  .fw-app [class*="border-[#d8dfd8]"],
+  .fw-app [class*="border-[#bcc5bc]"] {
+    border-color: var(--border-color);
+  }
+
+ .fw-app [class*="border-[#C2E0CC]"],
+  .fw-app [class*="border-[#cfe0d4]"] {
+    border-color: #365b40;
+  }
+
+  .fw-app [class*="border-[#FBD38D]"],
+  .fw-app [class*="border-[#e9c9a6]"] {
+    border-color: #665132;
+  }
+
+  .fw-app [class*="border-[#F8B4B4]"],
+  .fw-app [class*="border-[#efc7c1]"] {
+    border-color: #67413b;
+  }
+
+  .fw-app [class*="divide-[#edf0ec]"] > :not(:last-child),
+  .fw-app [class*="divide-[#EAEAE7]"] > :not(:last-child) {
+     border-color: var(--border-color);
+   }
+
+ .fw-app [class*="text-[#171717]"],
+  .fw-app [class*="text-[#202821]"],
+  .fw-app [class*="text-[#313b33]"],
+  .fw-app [class*="text-[#37433b]"],
+  .fw-app [class*="text-[#39443c]"],
+  .fw-app [class*="text-[#3f4941]"],
+  .fw-app [class*="text-[#444444]"] {
+    color: var(--text-primary);
+  }
+
+ .fw-app [class*="text-[#666666]"],
+  .fw-app [class*="text-[#68736a]"],
+  .fw-app [class*="text-[#66736b]"],
+  .fw-app [class*="text-[#59645c]"],
+  .fw-app [class*="text-[#555555]"],
+  .fw-app [class*="text-[#777777]"],
+  .fw-app [class*="text-[#888888]"],
+  .fw-app [class*="text-[#536359]"],
+  .fw-app [class*="text-[#879188]"],
+  .fw-app [class*="text-[#7a847c]"] {
+    color: var(--text-secondary);
+  }
+
+ .fw-app [class*="text-[#1f5c45]"],
+  .fw-app [class*="text-[#315a3a]"],
+  .fw-app [class*="text-[#174b36]"],
+  .fw-app [class*="text-[#1E3A2B]"],
+  .fw-app [class*="text-[#1E5631]"],
+  .fw-app [class*="text-[#285c3e]"],
+  .fw-app [class*="text-[#315d41]"] {
+    color: #a8d4b4;
+  }
+
+ .fw-app [class*="text-[#975A16]"],
+  .fw-app [class*="text-[#765124]"],
+  .fw-app [class*="text-[#84622d]"],
+  .fw-app [class*="text-[#8b682e]"] {
+    color: #e8bd76;
+  }
+
+ .fw-app [class*="text-[#9B1C1C]"],
+  .fw-app [class*="text-[#87372b]"] {
+    color: #f0a69b;
+  }
+
+ .fw-app input::placeholder,
+  .fw-app textarea::placeholder {
+    color: #88948b;
+    opacity: 1;
+  }
+
+ .fw-app .recharts-cartesian-grid line {
+    stroke: #2a352e;
+  }
+
+ .fw-app .recharts-cartesian-axis-tick text,
+  .fw-app .recharts-legend-item-text {
+    fill: #a0aca3;
+  }
+
+ .fw-app .recharts-default-tooltip {
+    border: 1px solid #2a352e !important;
+    background-color: #151c18 !important;
+    color: #e4eae5;
+  }
 /* Operational Table utilities */
 .table-dense th {
   padding: 10px 14px;

@@ -92,7 +92,7 @@ export const ForecastView: React.FC<ForecastViewProps> = ({ demoMode }) => {
       <section className="grid grid-cols-1 gap-3 rounded-lg border border-[#e2e6e1] bg-white p-4 sm:grid-cols-2 xl:grid-cols-5">
         <label className="text-xs font-medium text-[#59645c]">
           Kitchen
-          <div className="mt-1.5 flex h-10 items-center rounded-md border border-[#e0e5df] bg-[#f7f8f6] px-3 text-sm text-[#3f4941]">Main Campus Kitchen</div>
+          <div className="mt-1.5 flex h-10 items-center rounded-md border border-[#e0e5df] bg-[#f7f8f6] px-3 text-sm text-[#3f4941]">Assigned kitchen</div>
         </label>
         <label className="text-xs font-medium text-[#59645c]">
           Date
@@ -144,7 +144,7 @@ export const ForecastView: React.FC<ForecastViewProps> = ({ demoMode }) => {
       )}
 
       {!diners && !foodError && (
-        <div className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-10 text-center">
+        <div className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-7 text-center">
           <h2 className="text-base font-semibold">Enter expected attendance to generate a forecast</h2>
           <p className="mt-1 text-sm text-[#68736a]">FoodWise will use the selected meal’s historical service records.</p>
         </div>
@@ -229,7 +229,7 @@ export const ForecastView: React.FC<ForecastViewProps> = ({ demoMode }) => {
             </div>
           </>
         ) : (
-          <section className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-10 text-center">
+          <section className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-7 text-center">
             <div className="mx-auto grid h-10 w-10 place-items-center rounded-md bg-[#f7f3e9] text-[#84622d]"><AlertCircle className="h-5 w-5" /></div>
             <h2 className="mt-3 text-base font-semibold">Not enough verified history</h2>
             <p className="mx-auto mt-1 max-w-lg text-sm text-[#68736a]">

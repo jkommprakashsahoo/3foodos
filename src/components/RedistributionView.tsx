@@ -16,6 +16,9 @@ interface RedistributionViewProps {
   demoMode: boolean;
 }
 
+const isActiveSurplus = (item: SurplusListing) =>
+  item.status === 'available' || item.status === 'matched' || item.status === 'dispatched';
+
 export const RedistributionView: React.FC<RedistributionViewProps> = ({
   selectedInitialId,
   demoMode
@@ -51,9 +54,10 @@ export const RedistributionView: React.FC<RedistributionViewProps> = ({
       setAssignments(redistribution.matches);
       setSelectedOrderId(current => {
         const preferredId = selectedInitialId || current;
-        return preferredId && surplus.surplus.some(item => item.id === preferredId)
+        const activeListings = surplus.surplus.filter(isActiveSurplus);
+        return preferredId && activeListings.some(item => item.id === preferredId)
           ? preferredId
-          : surplus.surplus.find(item => item.status === 'available')?.id || surplus.surplus[0]?.id || null;
+          : activeListings.find(item => item.status === 'available')?.id || activeListings[0]?.id || null;
       });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Unable to load redistribution data.');
@@ -66,12 +70,11 @@ export const RedistributionView: React.FC<RedistributionViewProps> = ({
     void loadData();
   }, [loadData]);
 
-  const selectedOrder = orders.find(item => item.id === selectedOrderId);
+  const queue = useMemo(() => orders.filter(isActiveSurplus), [orders]);
+  const selectedOrder = queue.find(item => item.id === selectedOrderId);
   const activeAssignment = assignments.find(item => item.surplus_listing_id === selectedOrderId && item.status !== 'rejected');
   const assignedReceiver = receivers.find(receiver => receiver.id === activeAssignment?.receiver_id);
   const selectedRecommendation = recommendations.find(item => item.receiver.id === selectedReceiverId);
-  const queue = useMemo(() => orders.filter(item => ['available', 'matched', 'dispatched'].includes(item.status)), [orders]);
-
   const findMatches = async () => {
     if (!selectedOrderId) return;
     const lat = Number(latitude);
@@ -280,8 +283,12 @@ export const RedistributionView: React.FC<RedistributionViewProps> = ({
             </>
           ) : !isLoading ? (
             <div className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-12 text-center">
-              <h2 className="text-base font-semibold">Select surplus to begin</h2>
-              <p className="mt-1 text-sm text-[#68736a]">Available items will show receiver options and transfer status here.</p>
+              <h2 className="text-base font-semibold">{queue.length ? 'Select an active surplus listing' : 'No active transfers'}</h2>
+              <p className="mt-1 text-sm text-[#68736a]">
+                {queue.length
+                  ? 'Select an available item to find a receiver or review an active handover.'
+                  : 'Available, matched, and dispatched surplus will appear here.'}
+              </p>
             </div>
           ) : null}
         </div>

@@ -94,7 +94,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ demoMode }) => {
       )}
 
       {!isLoading && !error && !hasData && (
-        <div className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-10 text-center">
+        <div className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-7 text-center">
           <h2 className="text-base font-semibold">No impact records for this period</h2>
           <p className="mt-1 text-sm text-[#68736a]">Verified scale records and completed redistribution handovers will populate these reports.</p>
         </div>

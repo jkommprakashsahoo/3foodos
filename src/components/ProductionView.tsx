@@ -251,7 +251,7 @@ export const ProductionView: React.FC<ProductionViewProps> = ({ demoMode }) => {
       )}
 
       {!isGenerating && !rows.length && (
-        <div className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-10 text-center">
+        <div className="rounded-lg border border-[#e2e6e1] bg-white px-5 py-7 text-center">
           <h2 className="text-base font-semibold">Build a service production plan</h2>
           <p className="mt-1 text-sm text-[#68736a]">Choose the meal, expected attendance, and food items to request model recommendations.</p>
         </div>

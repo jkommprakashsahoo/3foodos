@@ -3,14 +3,7 @@
 
 import React, { useState } from 'react';
 import {
-  ShieldCheck,
-  User,
-  Lock,
-  Mail,
-  Building,
   LogOut,
-  CheckCircle2,
-  AlertCircle,
   X
 } from 'lucide-react';
 import { UserRole } from '../types.ts';
@@ -44,41 +37,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('Kitchen Manager');
-  const [organizationName, setOrganizationName] = useState('Campus Central Kitchen #04');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
-
-  const handleQuickLogin = async (roleEmail: string, rolePass: string) => {
-    setEmail(roleEmail);
-    setPassword(rolePass);
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: roleEmail, password: rolePass })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Authentication failed');
-      }
-      localStorage.setItem('foodwise_auth_token', data.token);
-      onAuthSuccess(data.user, data.token);
-      setSuccessMsg(`Authenticated as ${data.user.name} (${data.user.role})`);
-      setTimeout(() => {
-        onClose();
-        setSuccessMsg(null);
-      }, 1000);
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +53,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const body =
         tab === 'login'
           ? { email, password }
-          : { email, password, name, role, organization_name: organizationName };
+          : { email, password, name, role };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -160,31 +123,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
           )}
-
-          {/* Quick Role Selection Preset */}
-          <div>
-            <span className="block text-[11px] font-medium uppercase tracking-wider text-[#666666] mb-1.5">
-              Quick Role Switch (Enterprise Sandbox)
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('manager@foodwise.org', 'Manager123!')}
-                className="p-2 rounded border border-[#E5E5E2] bg-[#F7F7F5] hover:bg-[#EAEAE7] text-left transition-colors"
-              >
-                <span className="block font-medium text-[#171717]">Arjun Rao</span>
-                <span className="block text-[11px] text-[#666666]">Kitchen Manager</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('receiver@asha.org', 'Receiver123!')}
-                className="p-2 rounded border border-[#E5E5E2] bg-[#F7F7F5] hover:bg-[#EAEAE7] text-left transition-colors"
-              >
-                <span className="block font-medium text-[#171717]">Dr. Sunita Patel</span>
-                <span className="block text-[11px] text-[#666666]">Asha Shelter Receiver</span>
-              </button>
-            </div>
-          </div>
 
           {/* Login / Register Tab */}
           <div className="pt-2 border-t border-[#E5E5E2]">

@@ -239,7 +239,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f8f6] text-[#202821] flex flex-col antialiased">
+    <div className="fw-app min-h-screen bg-[#f8f8f6] text-[#202821] flex flex-col antialiased">
       {/* Top Header */}
       <Header
         activeTab={activeTab}
