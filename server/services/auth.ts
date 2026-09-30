@@ -11,7 +11,10 @@ import {
   type DbUser
 } from '../db/index.ts';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'foodwise_super_secure_hmac_secret_2026_salt';
+const isProductionRuntime = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+const JWT_SECRET = process.env.JWT_SECRET || (
+  isProductionRuntime ? '' : 'foodwise_local_development_secret_only'
+);
 const TOKEN_EXPIRY_HOURS = 24 * 7; // 7 days
 
 // Secure Password Hashing with SHA-256 + Salt
@@ -22,13 +25,6 @@ export function hashPassword(password: string, salt?: string): { hash: string; s
 }
 
 export function verifyPassword(password: string, storedHash: string, salt?: string): boolean {
-  // Demo seed users fallback support
-  if (storedHash.startsWith('$2b$10$demo_hash_')) {
-    if (password === 'password123' || password === 'demo123' || password.length >= 6) {
-      return true;
-    }
-  }
-
   if (!salt) return false;
   const { hash } = hashPassword(password, salt);
   const hashBuf = Buffer.from(hash);
@@ -45,6 +41,9 @@ export function generateToken(payload: {
   organization_id: string;
   name: string;
 }): string {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured for this deployment.');
+  }
   const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const exp = Math.floor(Date.now() / 1000) + TOKEN_EXPIRY_HOURS * 3600;
   const body = Buffer.from(JSON.stringify({ ...payload, exp })).toString('base64url');
@@ -65,6 +64,7 @@ export function verifyToken(token: string): {
   exp: number;
 } | null {
   try {
+    if (!JWT_SECRET) return null;
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 

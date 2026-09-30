@@ -6,6 +6,7 @@ import {
   createUser,
   findUserByEmail,
   findUserById,
+  getDatabaseStatus,
   type DbUser
 } from '../db/index.ts';
 import {
@@ -27,6 +28,25 @@ export interface AuthenticatedRequest extends Request {
 }
 
 const authRouter = Router();
+
+function authConfigurationUnavailable(res: Response, action: 'Account creation' | 'Sign-in' | 'Session verification') {
+  const isProductionRuntime = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  if (!isProductionRuntime) return false;
+
+  const databaseReady = process.env.VERCEL !== '1' || getDatabaseStatus().connected;
+  const tokenSigningReady = Boolean(process.env.JWT_SECRET);
+  if (databaseReady && tokenSigningReady) return false;
+
+  const error = !databaseReady
+    ? `${action} is unavailable because this deployment has no connected persistent database.`
+    : `${action} is unavailable because the JWT_SECRET is not configured for this deployment.`;
+  res.status(503).json({
+    success: false,
+    error: `${error} Contact the workspace administrator.`,
+    code: databaseReady ? 'AUTH_CONFIGURATION_MISSING' : 'AUTH_STORAGE_UNAVAILABLE'
+  });
+  return true;
+}
 
 // ----------------------------------------------------------------------
 // AUTHENTICATION MIDDLEWARE
@@ -98,10 +118,11 @@ export function requireRole(allowedRoles: UserRole[]) {
 // POST /api/auth/register
 authRouter.post('/register', async (req: Request, res: Response) => {
   try {
-    const { name, email, password, role, organization_id } = req.body;
+    const { name, email, password, role } = req.body;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
 
-    // Missing fields validation
-    if (!name || !email || !password || !role) {
+    if (!normalizedName || !normalizedEmail || typeof password !== 'string' || !role) {
       return res.status(400).json({
         success: false,
         error: 'All fields are required: name, email, password, role.',
@@ -109,40 +130,50 @@ authRouter.post('/register', async (req: Request, res: Response) => {
       });
     }
 
-    const validRoles: UserRole[] = ['Kitchen Manager', 'Kitchen Staff', 'Receiver', 'Admin'];
+    const validRoles: UserRole[] = ['Kitchen Manager', 'Kitchen Staff', 'Receiver'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        error: `Invalid role "${role}". Allowed roles: ${validRoles.join(', ')}`,
+        error: `Invalid role "${role}". Choose Kitchen Manager, Kitchen Staff, or Receiver.`,
         code: 'INVALID_ROLE'
       });
     }
 
-    if (password.length < 6) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return res.status(400).json({
         success: false,
-        error: 'Password must be at least 6 characters.',
+        error: 'Enter a valid email address.',
+        code: 'INVALID_EMAIL'
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 8 characters.',
         code: 'WEAK_PASSWORD'
       });
     }
 
-    const existing = await findUserByEmail(email);
+    if (authConfigurationUnavailable(res, 'Account creation')) return;
+
+    const existing = await findUserByEmail(normalizedEmail);
     if (existing) {
       return res.status(409).json({
         success: false,
-        error: `User with email "${email}" is already registered.`,
+        error: 'An account with this email is already registered.',
         code: 'EMAIL_IN_USE'
       });
     }
 
     const { hash, salt } = hashPassword(password);
     const newUser = await createUser({
-      name,
-      email,
+      name: normalizedName,
+      email: normalizedEmail,
       password_hash: hash,
       salt,
       role,
-      organization_id: organization_id || 'org-central-04'
+      organization_id: 'org-central-04'
     });
 
     const token = generateToken({
@@ -166,7 +197,19 @@ authRouter.post('/register', async (req: Request, res: Response) => {
       }
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    if (err.code === '23505') {
+      return res.status(409).json({
+        success: false,
+        error: 'An account with this email is already registered.',
+        code: 'EMAIL_IN_USE'
+      });
+    }
+    console.error('[Auth] Account registration failed:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to create your account right now. Please try again or contact the workspace administrator.',
+      code: 'REGISTRATION_FAILED'
+    });
   }
 });
 
@@ -175,7 +218,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (typeof email !== 'string' || !email.trim() || typeof password !== 'string' || !password) {
       return res.status(400).json({
         success: false,
         error: 'Email and password are required.',
@@ -183,7 +226,9 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       });
     }
 
-    const user = await findUserByEmail(email);
+    if (authConfigurationUnavailable(res, 'Sign-in')) return;
+
+    const user = await findUserByEmail(typeof email === 'string' ? email.trim().toLowerCase() : '');
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -222,32 +267,54 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       }
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    console.error('[Auth] Sign-in failed:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'Unable to sign in right now. Please try again or contact the workspace administrator.',
+      code: 'SIGN_IN_FAILED'
+    });
   }
 });
 
 // GET /api/auth/me
-authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    return res.status(401).json({ success: false, error: 'Unauthorized' });
-  }
+authRouter.get(
+  '/me',
+  (req, res, next) => {
+    if (authConfigurationUnavailable(res, 'Session verification')) return;
+    next();
+  },
+  requireAuth,
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
 
-  const user = await findUserById(req.user.id);
-  if (!user) {
-    return res.status(404).json({ success: false, error: 'User profile not found.' });
-  }
+      const user = await findUserById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ success: false, error: 'User profile not found.' });
+      }
 
-  return res.json({
-    success: true,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      organization_id: user.organization_id
+      return res.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          organization_id: user.organization_id
+        }
+      });
+    } catch (err) {
+      console.error('[Auth] Session verification failed:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'Unable to verify your session right now. Please try again.',
+        code: 'SESSION_VERIFICATION_FAILED'
+      });
     }
-  });
-});
+  }
+);
 
 // POST /api/auth/logout
 authRouter.post('/logout', (req: Request, res: Response) => {

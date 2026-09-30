@@ -427,6 +427,48 @@ export async function initDatabase(): Promise<DatabaseStatus> {
       await pool.query(sql);
       console.log('[DB] PostgreSQL schema initialized.');
     }
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS organizations (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        type VARCHAR(64) NOT NULL,
+        address TEXT NOT NULL,
+        latitude DOUBLE PRECISION,
+        longitude DOUBLE PRECISION,
+        contact_phone VARCHAR(32),
+        fssai_license VARCHAR(64),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(64) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        salt VARCHAR(128) NOT NULL DEFAULT '',
+        role VARCHAR(32) NOT NULL,
+        organization_id VARCHAR(64) REFERENCES organizations(id) ON DELETE SET NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS salt VARCHAR(128) NOT NULL DEFAULT '';
+    `);
+    const [organization] = SEED_ORGANIZATIONS;
+    await pool.query(
+      `INSERT INTO organizations
+        (id, name, type, address, latitude, longitude, contact_phone, fssai_license)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        organization.id,
+        organization.name,
+        organization.type,
+        organization.address,
+        organization.latitude,
+        organization.longitude,
+        organization.contact_phone,
+        organization.fssai_license
+      ]
+    );
   } catch (err: any) {
     isPgConnected = false;
     connectionMessage = `Operating with verified local persistence store (${err.message || 'Connection failed'}).`;
@@ -460,11 +502,25 @@ export async function getUsers(): Promise<DbUser[]> {
 
 export async function findUserByEmail(email: string): Promise<DbUser | null> {
   const normalized = email.trim().toLowerCase();
+  if (isPgConnected && pool) {
+    const result = await pool.query<DbUser>(
+      'SELECT id, name, email, password_hash, salt, role, organization_id, created_at FROM users WHERE LOWER(email) = $1 LIMIT 1',
+      [normalized]
+    );
+    return result.rows[0] || null;
+  }
   const user = localStore.users.find(u => u.email.toLowerCase() === normalized);
   return user || null;
 }
 
 export async function findUserById(id: string): Promise<DbUser | null> {
+  if (isPgConnected && pool) {
+    const result = await pool.query<DbUser>(
+      'SELECT id, name, email, password_hash, salt, role, organization_id, created_at FROM users WHERE id = $1 LIMIT 1',
+      [id]
+    );
+    return result.rows[0] || null;
+  }
   const user = localStore.users.find(u => u.id === id);
   return user || null;
 }
@@ -479,20 +535,42 @@ export async function createUser(userData: {
   role: UserRole;
   organization_id?: string;
 }): Promise<DbUser> {
-  const existing = await findUserByEmail(userData.email);
-  if (existing) {
-    throw new Error(`A user with email "${userData.email}" already exists.`);
+  const id = `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const normalizedEmail = userData.email.trim().toLowerCase();
+  const organizationId = userData.organization_id || SEED_ORGANIZATIONS[0].id;
+  if (isPgConnected && pool) {
+    const result = await pool.query<DbUser>(
+      `INSERT INTO users (id, name, email, password_hash, salt, role, organization_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, name, email, password_hash, salt, role, organization_id, created_at`,
+      [
+        id,
+        userData.name.trim(),
+        normalizedEmail,
+        userData.password_hash,
+        userData.salt,
+        userData.role,
+        organizationId
+      ]
+    );
+    return result.rows[0];
   }
 
-  const id = `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const existing = await findUserByEmail(normalizedEmail);
+  if (existing) {
+    const error = new Error(`A user with email "${normalizedEmail}" already exists.`) as Error & { code: string };
+    error.code = '23505';
+    throw error;
+  }
+
   const newUser: DbUser = {
     id,
-    name: userData.name,
-    email: userData.email.trim().toLowerCase(),
+    name: userData.name.trim(),
+    email: normalizedEmail,
     password_hash: userData.password_hash,
     salt: userData.salt,
     role: userData.role,
-    organization_id: userData.organization_id || 'org-central-04',
+    organization_id: organizationId,
     created_at: new Date().toISOString()
   };
 

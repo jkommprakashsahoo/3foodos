@@ -122,7 +122,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess, initialError })
               <input
                 type="password"
                 required
-                minLength={mode === 'register' ? 6 : undefined}
+                minLength={mode === 'register' ? 8 : undefined}
                 autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                 value={password}
                 onChange={event => setPassword(event.target.value)}

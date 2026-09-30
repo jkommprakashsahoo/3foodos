@@ -18,10 +18,13 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    salt VARCHAR(128) NOT NULL DEFAULT '',
     role VARCHAR(32) NOT NULL, -- 'Kitchen Manager', 'Kitchen Staff', 'Receiver', 'Admin'
     organization_id VARCHAR(64) REFERENCES organizations(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS salt VARCHAR(128) NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS food_items (
     id VARCHAR(64) PRIMARY KEY,

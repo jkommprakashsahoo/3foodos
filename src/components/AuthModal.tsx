@@ -205,6 +205,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <input
                   type="password"
                   required
+                  minLength={tab === 'register' ? 8 : undefined}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="w-full bg-[#F7F7F5] border border-[#E5E5E2] rounded px-2.5 py-1.5 text-xs text-[#171717] outline-none"

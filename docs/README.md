@@ -55,7 +55,8 @@ Vision analysis is advisory. The scale-confirmed `user_confirmed_quantity` field
 ## Deployment checklist
 
 - Set `GEMINI_API_KEY` using a secret manager.
-- Set a real `DATABASE_URL` and run the database initialization path.
+- Set a real `DATABASE_URL` and run the database initialization path. Vercel auth requires PostgreSQL because serverless local memory/file storage is not durable.
+- Set a unique high-entropy `JWT_SECRET`. Authentication fails closed if production storage or token-signing configuration is unavailable.
 - Put the Express server behind HTTPS before enabling camera capture.
 - Restrict production CORS and authentication policies to the organization’s domain.
 - Keep demo data disabled for verified reporting.

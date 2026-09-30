@@ -64,8 +64,8 @@ Set secrets in the server/deployment environment, not in frontend variables or c
 | Variable | Required | Description |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | No | Server-side key for Gemini food-image analysis. Without it, analysis is unavailable. |
-| `DATABASE_URL` | No | PostgreSQL connection string. If absent or unavailable, the app falls back to local JSON persistence. |
-| `JWT_SECRET` | Production | Secret used to sign authentication tokens. Set a unique, high-entropy value in every deployed environment. The current code has a development fallback; do not rely on it in production. |
+| `DATABASE_URL` | Local development: no. Vercel production: yes. | PostgreSQL connection string. Local development can use JSON persistence; Vercel authentication requires PostgreSQL so accounts and sessions survive separate serverless invocations. |
+| `JWT_SECRET` | Vercel production | Secret used to sign authentication tokens. Set a unique, high-entropy value in every deployed environment. Vercel authentication is disabled unless it is configured. |
 
 `.env.example` contains placeholders, not working credentials. Do not put database credentials, Gemini keys, or other secrets in `VITE_*` variables: those can be exposed to browser code.
 
@@ -125,7 +125,7 @@ Authenticated endpoints use the bearer token stored by the sign-in flow. Request
 
 ## Deployment
 
-The repository includes a Vercel serverless API entry point and a `vercel-build` script. Connect the repository to a Vercel project and configure the required server-side environment variables in that project's settings. Use a managed PostgreSQL database for persistent production data; the local JSON fallback depends on writable instance storage and should not be treated as durable serverless storage.
+The repository includes a Vercel serverless API entry point and a `vercel-build` script. Connect the repository to a Vercel project and configure the required server-side environment variables in that project's settings. Use a managed PostgreSQL database for persistent production data; the local JSON fallback depends on writable instance storage and should not be treated as durable serverless storage. Authentication endpoints return `503 AUTH_STORAGE_UNAVAILABLE` until PostgreSQL is connected, or `503 AUTH_CONFIGURATION_MISSING` if `JWT_SECRET` is absent; they do not claim success while writing accounts to ephemeral memory.
 
 For any production deployment:
 
